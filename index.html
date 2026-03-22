@@ -1,1 +1,1408 @@
-<!DOCTYPE html><html lang='fr'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Accordeur Guitare Pro</title><link rel='manifest' href='manifest.json'><link rel='stylesheet' href='style.css'><meta name='theme-color' content='#0e0800'></head><body><div class='app'><div class='note' id='note'>--</div><div class='tuner'><div class='scale'></div><div class='needle' id='needle'></div></div><div class='freq' id='freq'>-- Hz</div><div class='status' id='status'>Appuie pour démarrer</div><button id='startBtn'>🎤 Activer le micro</button></div><script src='app.js'></script><script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./service-worker.js');}</script></body></html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0e0800">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>🎸 Guitare Classique</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0600;--bg2:#130c00;--bg3:#1e1200;--bg4:#2a1a00;
+  --paper:#f5ead4;--paper2:#ede0c0;--ink:#1a0f00;
+  --gold:#c9923a;--gold2:#e8b86d;--gold3:#f5d49a;
+  --red:#c0392b;--green:#27ae60;--blue:#2471a3;
+  --f1:#e74c3c;--f2:#2980b9;--f3:#27ae60;--f4:#e67e22;
+  /* Couleurs artistes */
+  --acdc:#e74c3c;--metal:#2c3e50;--fr:#27ae60;--classic:#9b59b6;--world:#e67e22;
+  --r:14px;--sh:0 8px 32px rgba(0,0,0,.7);--sh2:0 2px 12px rgba(0,0,0,.5);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Crimson Pro',Georgia,serif;background:var(--bg);color:var(--paper);min-height:100vh;overflow-x:hidden;
+  background-image:radial-gradient(ellipse 60% 40% at 15% 60%,rgba(201,146,58,.07) 0%,transparent 70%),radial-gradient(ellipse 40% 60% at 85% 20%,rgba(201,146,58,.04) 0%,transparent 60%);}
+
+/* TOAST */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--bg4);border:1px solid var(--gold);border-radius:30px;
+  padding:10px 22px;font-size:.9rem;color:var(--gold3);z-index:999;
+  opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap;box-shadow:var(--sh);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* BADGE POPUP */
+#badgePopup{position:fixed;top:80px;right:16px;
+  background:linear-gradient(135deg,var(--bg4),var(--bg3));border:2px solid var(--gold);border-radius:var(--r);
+  padding:14px 18px;z-index:998;transform:translateX(120%);transition:transform .4s cubic-bezier(.34,1.56,.64,1);box-shadow:var(--sh);}
+#badgePopup.show{transform:translateX(0)}
+
+/* HEADER */
+header{background:linear-gradient(180deg,var(--bg3),var(--bg2));border-bottom:1px solid rgba(201,146,58,.3);
+  padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;box-shadow:var(--sh);}
+.logo{font-family:'Playfair Display',serif;font-size:1.35rem;color:var(--gold2);display:flex;align-items:center;gap:8px;}
+.logo em{font-style:italic;color:var(--gold3)}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.xp-chip{display:flex;align-items:center;gap:5px;background:rgba(201,146,58,.12);border:1px solid rgba(201,146,58,.3);border-radius:20px;padding:5px 12px;font-size:.8rem;color:var(--gold2);font-weight:600;}
+.streak-chip{display:flex;align-items:center;gap:4px;background:rgba(211,84,0,.12);border:1px solid rgba(211,84,0,.3);border-radius:20px;padding:5px 10px;font-size:.8rem;color:#e59866;}
+
+/* NAV */
+nav{display:flex;background:var(--bg2);border-bottom:1px solid rgba(201,146,58,.2);
+  position:sticky;top:57px;z-index:99;overflow-x:auto;scrollbar-width:none;box-shadow:0 4px 16px rgba(0,0,0,.4);}
+nav::-webkit-scrollbar{display:none}
+.nav-btn{flex:1;min-width:62px;padding:10px 4px 8px;border:none;background:transparent;
+  color:rgba(245,234,212,.4);font-family:'Crimson Pro',serif;font-size:.68rem;letter-spacing:.04em;
+  cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:3px;border-bottom:3px solid transparent;}
+.nav-btn .ic{font-size:1.1rem;line-height:1}
+.nav-btn.active{color:var(--gold2);border-bottom-color:var(--gold);background:rgba(201,146,58,.07)}
+
+/* PAGES */
+.page{display:none;padding:16px 14px 110px;animation:fadeUp .3s ease}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* CARDS */
+.card{background:linear-gradient(145deg,var(--bg4),var(--bg3));border:1px solid rgba(201,146,58,.2);border-radius:var(--r);padding:16px;margin-bottom:12px;box-shadow:var(--sh2);}
+.card-title{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold2);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:30px;border:none;font-family:'Crimson Pro',serif;font-size:.92rem;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--ink);box-shadow:0 4px 15px rgba(201,146,58,.35);}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(201,146,58,.45)}
+.btn-outline{background:transparent;border:2px solid var(--gold);color:var(--gold2)}
+.btn-sm{padding:7px 14px;font-size:.8rem}
+.btn-red{background:rgba(192,57,43,.15);border:1px solid var(--red);color:#e74c3c}
+
+/* MISC */
+.sec-title{font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--gold2);margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid rgba(201,146,58,.2);display:flex;align-items:center;gap:8px;}
+.prog-track{background:rgba(255,255,255,.07);border-radius:20px;height:7px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:20px;transition:width .5s}
+.tip{background:rgba(201,146,58,.07);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:10px 13px;margin:10px 0;font-style:italic;color:var(--gold3);font-size:.88rem;line-height:1.6;}
+.step-row{display:flex;align-items:flex-start;gap:9px;margin-bottom:8px}
+.step-n{display:inline-flex;width:24px;height:24px;background:var(--gold);color:var(--ink);border-radius:50%;align-items:center;justify-content:center;font-weight:700;font-size:.78rem;flex-shrink:0;}
+.step-t{font-size:.9rem;color:rgba(245,234,212,.8);padding-top:3px;line-height:1.6}
+.tab-notation{font-family:'Courier New',monospace;font-size:.73rem;background:rgba(245,234,212,.04);border:1px solid rgba(201,146,58,.2);border-radius:8px;padding:13px;overflow-x:auto;line-height:1.9;white-space:pre;color:var(--paper2);}
+.back-btn{background:rgba(201,146,58,.08);border:1px solid rgba(201,146,58,.25);color:var(--gold2);padding:7px 14px;border-radius:20px;cursor:pointer;font-family:'Crimson Pro',serif;font-size:.86rem;transition:all .2s;}
+.back-btn:hover{background:rgba(201,146,58,.18)}
+.xp-anim{position:fixed;font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--gold2);font-weight:700;pointer-events:none;z-index:1000;animation:xpFloat 1.5s ease-out forwards;}
+@keyframes xpFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+
+/* ── ACCORDEUR ── */
+.tuner-display{text-align:center;padding:18px 0 8px}
+.note-big{font-family:'Playfair Display',serif;font-size:4rem;font-weight:900;line-height:1;color:var(--gold2);transition:color .2s;}
+.note-big.in-tune{color:#2ecc71;text-shadow:0 0 40px rgba(46,204,113,.5)}
+.note-big.too-low{color:#3498db}.note-big.too-high{color:var(--red)}
+.freq-disp{font-size:.82rem;color:rgba(245,234,212,.4);margin-top:4px;font-style:italic}
+.cents-wrap{position:relative;height:9px;background:rgba(255,255,255,.08);border-radius:5px;margin:12px 0;overflow:hidden}
+.cents-bar{position:absolute;top:0;bottom:0;width:4px;background:var(--gold2);left:50%;transform:translateX(-50%);border-radius:2px;transition:left .08s}
+.cents-bar.in-tune{background:#2ecc71;box-shadow:0 0 12px rgba(46,204,113,.8)}
+.cents-center{position:absolute;left:50%;top:-1px;bottom:-1px;width:2px;background:rgba(255,255,255,.25);transform:translateX(-50%)}
+.cents-lbl{text-align:center;font-size:.73rem;color:rgba(245,234,212,.4);margin-top:3px}
+.tuner-status{text-align:center;padding:9px;border-radius:8px;font-size:.86rem;margin-top:8px;transition:all .3s}
+.s-idle{background:rgba(255,255,255,.04);color:rgba(245,234,212,.4)}
+.s-listen{background:rgba(52,152,219,.15);color:#5dade2}
+.s-tuned{background:rgba(46,204,113,.18);color:#52be80}
+.s-low{background:rgba(52,152,219,.12);color:#5dade2}
+.s-high{background:rgba(192,57,43,.12);color:#ec7063}
+.strings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.str-btn{padding:11px 6px;border-radius:10px;border:2px solid rgba(201,146,58,.25);background:rgba(201,146,58,.04);color:var(--paper);cursor:pointer;text-align:center;transition:all .2s;font-family:'Crimson Pro',serif;}
+.str-btn:hover,.str-btn.act{border-color:var(--gold);background:rgba(201,146,58,.12);transform:scale(1.03)}
+.str-name{font-size:1.1rem;font-weight:700;color:var(--gold2)}
+.str-num{font-size:.65rem;color:rgba(245,234,212,.4)}
+.str-freq{font-size:.68rem;color:rgba(245,234,212,.32)}
+
+/* ── LEÇONS ── */
+.lessons-list{display:flex;flex-direction:column;gap:9px}
+.lesson-item{display:flex;align-items:center;gap:11px;padding:13px;background:linear-gradient(145deg,var(--bg4),var(--bg3));border:1px solid rgba(201,146,58,.18);border-radius:var(--r);cursor:pointer;transition:all .2s;}
+.lesson-item:hover:not(.locked){border-color:var(--gold);transform:translateX(4px)}
+.lesson-item.locked{opacity:.4;cursor:not-allowed}
+.lesson-item.done{border-color:rgba(46,204,113,.35)}
+.l-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;background:rgba(201,146,58,.1);border:2px solid rgba(201,146,58,.22);}
+.lesson-item.done .l-icon{background:rgba(46,204,113,.1);border-color:rgba(46,204,113,.35)}
+.lesson-item.locked .l-icon{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+.l-info{flex:1}.l-title{font-size:.92rem;font-weight:600;color:var(--paper);margin-bottom:1px}
+.l-sub{font-size:.72rem;color:rgba(245,234,212,.42);font-style:italic}
+.l-xp{font-size:.68rem;color:var(--gold);font-weight:600}
+.l-arrow{color:var(--gold);font-size:1rem}
+.lesson-view{display:none}.lesson-view.active{display:block;animation:fadeUp .3s}
+.lesson-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.lesson-content h2{font-family:'Playfair Display',serif;color:var(--gold2);margin:14px 0 8px;font-size:1.15rem}
+.lesson-content p{font-size:.92rem;line-height:1.75;color:rgba(245,234,212,.82);margin-bottom:10px}
+
+/* ── EXERCICE ── */
+.notes-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.note-chip{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;border:2px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);transition:all .25s;}
+.note-chip.correct{background:rgba(46,204,113,.25);border-color:var(--green);color:#58d68d}
+.note-chip.wrong{background:rgba(192,57,43,.25);border-color:var(--red);color:#ec7063}
+.note-chip.current{background:rgba(201,146,58,.25);border-color:var(--gold);color:var(--gold2);transform:scale(1.18);box-shadow:0 0 18px rgba(201,146,58,.45);}
+.score-ring{width:90px;height:90px;margin:0 auto 10px;position:relative}
+.score-ring svg{transform:rotate(-90deg)}
+.score-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold2);}
+.metro-wrap{display:flex;align-items:center;gap:10px;margin:8px 0}
+.metro-beat{width:13px;height:13px;border-radius:50%;background:rgba(255,255,255,.15);transition:all .08s}
+.metro-beat.on{background:var(--gold2);box-shadow:0 0 10px rgba(232,184,109,.7)}
+.bpm-ctrl{display:flex;align-items:center;gap:7px}
+.bpm-btn{width:28px;height:28px;border-radius:50%;border:none;background:rgba(201,146,58,.12);color:var(--gold2);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.bpm-btn:hover{background:rgba(201,146,58,.25)}
+.tab-it{flex:1;min-width:58px;padding:7px 4px;border-radius:8px;border:none;background:rgba(255,255,255,.05);color:rgba(245,234,212,.45);font-family:'Crimson Pro',serif;font-size:.76rem;cursor:pointer;transition:all .2s;}
+.tab-it.active{background:rgba(201,146,58,.14);color:var(--gold2);border:1px solid rgba(201,146,58,.28)}
+.tab-group{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+
+/* ══════════════════════════════════
+   BIBLIOTHÈQUE — NOUVEAU DESIGN
+══════════════════════════════════ */
+.lib-search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(201,146,58,.2);border-radius:30px;padding:9px 16px;margin-bottom:14px;}
+.lib-search input{flex:1;background:transparent;border:none;outline:none;color:var(--paper);font-family:'Crimson Pro',serif;font-size:.92rem;}
+.lib-search input::placeholder{color:rgba(245,234,212,.28)}
+
+/* Onglets artistes */
+.artist-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-bottom:16px}
+.artist-tabs::-webkit-scrollbar{display:none}
+.artist-tab{flex-shrink:0;padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-family:'Crimson Pro',serif;font-size:.8rem;font-weight:600;transition:all .2s;letter-spacing:.03em;}
+.artist-tab.all{background:rgba(201,146,58,.12);border:1px solid rgba(201,146,58,.3);color:var(--gold2);}
+.artist-tab.all.active,.artist-tab.active{opacity:1;transform:scale(1.05);box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.artist-tab:not(.active){opacity:.55}
+
+/* Sections artiste */
+.artist-section{margin-bottom:20px}
+.artist-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 14px;border-radius:10px;}
+.artist-logo{font-size:1.6rem}
+.artist-name{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700}
+.artist-sub{font-size:.72rem;opacity:.65;margin-top:1px}
+.pieces-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+
+/* Carte de morceau */
+.piece-card{background:linear-gradient(145deg,var(--bg4),var(--bg3));border:1px solid rgba(201,146,58,.18);border-radius:var(--r);padding:13px 11px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.piece-card:hover{border-color:var(--gold);transform:translateY(-3px);box-shadow:var(--sh)}
+.piece-card:active{transform:translateY(-1px)}
+.pc-artist-bar{height:3px;border-radius:2px;margin-bottom:9px;opacity:.7}
+.diff-dots{display:flex;gap:3px;margin-bottom:6px}
+.d-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.12)}
+.d-dot.on{background:var(--gold)}
+.p-title{font-size:.85rem;font-weight:600;color:var(--paper);margin-bottom:2px;line-height:1.3}
+.p-comp{font-size:.7rem;color:rgba(245,234,212,.4);font-style:italic}
+.p-tag{display:inline-block;margin-top:6px;font-size:.6rem;padding:2px 7px;border-radius:10px;border:1px solid rgba(201,146,58,.25);color:var(--gold3);letter-spacing:.05em;text-transform:uppercase;}
+.p-fav{position:absolute;top:9px;right:9px;font-size:.9rem;cursor:pointer;opacity:.4;transition:transform .2s;}
+.p-fav.on{opacity:1;transform:scale(1.2)}
+.p-level{position:absolute;bottom:9px;right:9px;font-size:.58rem;padding:2px 6px;border-radius:8px;color:rgba(245,234,212,.5);background:rgba(255,255,255,.05);}
+
+/* VIEWER */
+.piece-viewer{display:none}.piece-viewer.active{display:block;animation:fadeUp .3s}
+.player-ctrl{display:flex;align-items:center;gap:10px;padding:11px;background:rgba(201,146,58,.05);border-radius:var(--r);border:1px solid rgba(201,146,58,.18);flex-wrap:wrap;}
+.play-btn{width:46px;height:46px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--ink);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(201,146,58,.35);transition:all .2s;flex-shrink:0;}
+.play-btn:hover{transform:scale(1.08)}
+.prog-bar-wrap{flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:3px;cursor:pointer;min-width:60px;}
+.prog-bar-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:3px;width:0%;transition:width .1s}
+
+/* ACCORDS VISUELS */
+.chords-row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.chord-box{text-align:center;cursor:pointer;transition:transform .2s}
+.chord-box:hover{transform:scale(1.05)}
+.chord-label{font-size:.75rem;font-weight:700;color:var(--gold2);margin-bottom:4px;font-family:'Playfair Display',serif}
+
+/* PAROLES+ACCORDS */
+.lyrics-block{font-size:.88rem;line-height:2;color:rgba(245,234,212,.8);background:rgba(245,234,212,.03);border:1px solid rgba(201,146,58,.15);border-radius:10px;padding:14px;}
+.chord-inline{color:var(--gold2);font-weight:700;font-size:.8rem;font-family:'Playfair Display',serif;background:rgba(201,146,58,.12);padding:1px 5px;border-radius:4px;margin:0 1px;cursor:pointer;}
+.chord-inline:hover{background:rgba(201,146,58,.25)}
+.lyrics-section{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin:12px 0 6px;font-weight:700}
+
+/* GUIDED */
+.guided-note{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;background:rgba(201,146,58,.06);border-radius:var(--r);border:1px solid rgba(201,146,58,.2);margin:10px 0;min-height:90px;}
+.gn-note{font-family:'Playfair Display',serif;font-size:2.8rem;color:var(--gold2);line-height:1}
+.gn-info{font-size:.8rem;color:rgba(245,234,212,.5);margin-top:5px}
+.gn-result{font-size:1.4rem;margin-top:7px;min-height:28px}
+
+/* PROFIL */
+.profile-lvl{display:flex;align-items:center;justify-content:center;width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--ink);margin:0 auto 10px;box-shadow:0 0 30px rgba(201,146,58,.4);}
+.badge-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(201,146,58,.08);border:1px solid rgba(201,146,58,.2);border-radius:10px;padding:9px 12px;min-width:68px;transition:all .2s;}
+.badge-chip.earned{border-color:var(--gold);background:rgba(201,146,58,.15)}
+.badge-chip.locked{opacity:.32;filter:grayscale(1)}
+
+.finger-legend{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.f-pill{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;font-size:.78rem}
+.f-dot{width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;color:#fff}
+
+@media(max-width:360px){.pieces-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+<div id="badgePopup">
+  <div style="font-size:2rem;margin-bottom:5px" id="bpIcon">🏆</div>
+  <div style="font-size:.68rem;color:var(--gold);text-transform:uppercase;letter-spacing:.1em">Badge débloqué !</div>
+  <div style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--gold2)" id="bpName">—</div>
+</div>
+
+<header>
+  <div class="logo">🎸 Guitare <em>Classique</em></div>
+  <div class="hdr-right">
+    <div class="streak-chip">🔥 <span id="hStreak">0</span></div>
+    <div class="xp-chip">⭐ <span id="hXP">0</span> XP</div>
+  </div>
+</header>
+
+<nav>
+  <button class="nav-btn active" onclick="showPage('home')" id="nav-home"><span class="ic">🏠</span>Accueil</button>
+  <button class="nav-btn" onclick="showPage('tuner')" id="nav-tuner"><span class="ic">🎵</span>Accordeur</button>
+  <button class="nav-btn" onclick="showPage('lessons')" id="nav-lessons"><span class="ic">📖</span>Cours</button>
+  <button class="nav-btn" onclick="showPage('exercise')" id="nav-exercise"><span class="ic">⭐</span>Exercice</button>
+  <button class="nav-btn" onclick="showPage('library')" id="nav-library"><span class="ic">🎼</span>Morceaux</button>
+  <button class="nav-btn" onclick="showPage('profile')" id="nav-profile"><span class="ic">👤</span>Profil</button>
+</nav>
+
+<!-- ══ HOME ══ -->
+<div class="page active" id="page-home">
+  <div class="card" style="position:relative;overflow:hidden;padding:20px 16px">
+    <div style="position:absolute;right:-12px;bottom:-12px;font-size:5rem;opacity:.05;transform:rotate(-15deg)">🎸</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold2);margin-bottom:3px" id="homeGreeting">Bonjour, Musicien !</div>
+    <div style="font-size:.88rem;color:rgba(245,234,212,.45);font-style:italic;margin-bottom:14px" id="homeSub">Votre voyage musical</div>
+    <div style="display:flex;justify-content:space-between;font-size:.78rem;color:rgba(245,234,212,.4);margin-bottom:4px"><span id="homeLvl">Débutant</span><span id="homeXPLbl">0 / 500 XP</span></div>
+    <div class="prog-track"><div class="prog-fill" id="homeXPBar" style="width:0%"></div></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px">
+      <div style="text-align:center"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold2)" id="sDays">0</div><div style="font-size:.65rem;color:rgba(245,234,212,.35);text-transform:uppercase">Jours</div></div>
+      <div style="text-align:center"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold2)" id="sLess">0</div><div style="font-size:.65rem;color:rgba(245,234,212,.35);text-transform:uppercase">Leçons</div></div>
+      <div style="text-align:center"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold2)" id="sScore">—</div><div style="font-size:.65rem;color:rgba(245,234,212,.35);text-transform:uppercase">Meilleur</div></div>
+      <div style="text-align:center"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold2)" id="sBadge">0</div><div style="font-size:.65rem;color:rgba(245,234,212,.35);text-transform:uppercase">Badges</div></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px">
+    <div class="card" style="cursor:pointer;text-align:center;padding:14px 10px" onclick="showPage('tuner')"><div style="font-size:1.7rem;margin-bottom:6px">🎵</div><div style="font-size:.82rem;font-weight:600">Accorder</div><div style="font-size:.68rem;color:rgba(245,234,212,.38);margin-top:2px">Avant chaque session</div></div>
+    <div class="card" style="cursor:pointer;text-align:center;padding:14px 10px" onclick="continueLesson()"><div style="font-size:1.7rem;margin-bottom:6px">▶️</div><div style="font-size:.82rem;font-weight:600">Continuer</div><div style="font-size:.68rem;color:rgba(245,234,212,.38);margin-top:2px" id="nextLName">Leçon 1</div></div>
+    <div class="card" style="cursor:pointer;text-align:center;padding:14px 10px" onclick="showPage('exercise')"><div style="font-size:1.7rem;margin-bottom:6px">⭐</div><div style="font-size:.82rem;font-weight:600">S'exercer</div><div style="font-size:.68rem;color:rgba(245,234,212,.38);margin-top:2px">Gammes & arpèges</div></div>
+    <div class="card" style="cursor:pointer;text-align:center;padding:14px 10px" onclick="showPage('library')"><div style="font-size:1.7rem;margin-bottom:6px">🎼</div><div style="font-size:.82rem;font-weight:600">Morceaux</div><div style="font-size:.68rem;color:rgba(245,234,212,.38);margin-top:2px">AC/DC · Metallica · +</div></div>
+  </div>
+  <div class="card"><div class="card-title">💡 Conseil du jour</div><p style="font-size:.9rem;font-style:italic;color:rgba(245,234,212,.75);line-height:1.65" id="tipDay"></p></div>
+</div>
+
+<!-- ══ ACCORDEUR ══ -->
+<div class="page" id="page-tuner">
+  <div class="sec-title">🎵 Accordeur Chromatique</div>
+  <div class="card">
+    <div class="tuner-display">
+      <div class="note-big" id="tNote">—</div>
+      <div class="freq-disp" id="tFreq">Appuyez sur Démarrer</div>
+      <div class="cents-wrap"><div class="cents-center"></div><div class="cents-bar" id="cBar"></div></div>
+      <div class="cents-lbl" id="cLbl">— cents</div>
+    </div>
+    <div style="text-align:center;margin-bottom:12px"><button class="btn btn-gold" id="tunerBtn" onclick="toggleTuner()">🎤 Démarrer l'accordeur</button></div>
+    <div class="tuner-status s-idle" id="tStatus">Appuyez sur Démarrer pour utiliser le micro</div>
+  </div>
+  <div class="card">
+    <div class="card-title">🎸 Sons de référence</div>
+    <div class="strings-grid">
+      <div class="str-btn" onclick="playRef(0)"><div class="str-name">Mi ♭</div><div class="str-num">Corde 6 (grave)</div><div class="str-freq">82.4 Hz</div></div>
+      <div class="str-btn" onclick="playRef(1)"><div class="str-name">La</div><div class="str-num">Corde 5</div><div class="str-freq">110 Hz</div></div>
+      <div class="str-btn" onclick="playRef(2)"><div class="str-name">Ré</div><div class="str-num">Corde 4</div><div class="str-freq">146.8 Hz</div></div>
+      <div class="str-btn" onclick="playRef(3)"><div class="str-name">Sol</div><div class="str-num">Corde 3</div><div class="str-freq">196 Hz</div></div>
+      <div class="str-btn" onclick="playRef(4)"><div class="str-name">Si</div><div class="str-num">Corde 2</div><div class="str-freq">246.9 Hz</div></div>
+      <div class="str-btn" onclick="playRef(5)"><div class="str-name">Mi ♯</div><div class="str-num">Corde 1 (aigu)</div><div class="str-freq">329.6 Hz</div></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">📐 Position relative (accordage par cordes)</div><div id="tunerFB"></div></div>
+</div>
+
+<!-- ══ COURS ══ -->
+<div class="page" id="page-lessons">
+  <div id="lessonsListV">
+    <div class="sec-title">📖 Programme de cours</div>
+    <div class="card" style="padding:10px 14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(245,234,212,.4);margin-bottom:4px"><span>Progression</span><span id="lProg">0 / 8</span></div>
+      <div class="prog-track"><div class="prog-fill" id="lProgBar" style="width:0%"></div></div>
+    </div>
+    <div class="sec-title" style="font-size:.9rem;margin-bottom:7px">🌱 Débutant</div>
+    <div class="lessons-list" id="lessListBeg"></div>
+    <div class="sec-title" style="font-size:.9rem;margin:14px 0 7px">🌿 Intermédiaire</div>
+    <div class="lessons-list" id="lessListInt"></div>
+    <div class="sec-title" style="font-size:.9rem;margin:14px 0 7px">🌳 Avancé</div>
+    <div class="lessons-list" id="lessListAdv"></div>
+  </div>
+  <div class="lesson-view" id="lessonDetailV">
+    <div class="lesson-header">
+      <button class="back-btn" onclick="backToLessons()">← Retour</button>
+      <div style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--gold2)" id="lDetailTitle"></div>
+    </div>
+    <div id="lDetailContent"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-gold btn-sm" id="completeLBtn" onclick="completeLesson()">✅ Marquer terminée</button>
+      <button class="btn btn-outline btn-sm" onclick="showPage('exercise')">⭐ Exercice</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EXERCICE ══ -->
+<div class="page" id="page-exercise">
+  <div class="sec-title">⭐ Exercice Noté</div>
+  <div class="tab-group">
+    <button class="tab-it active" onclick="selEx(0,this)">Do Maj</button>
+    <button class="tab-it" onclick="selEx(1,this)">La min</button>
+    <button class="tab-it" onclick="selEx(2,this)">Arpège</button>
+    <button class="tab-it" onclick="selEx(3,this)">Chromatique</button>
+  </div>
+  <div class="card">
+    <div class="card-title" id="exTitle">🎯 Gamme de Do Majeur</div>
+    <p style="font-size:.85rem;color:rgba(245,234,212,.5);margin-bottom:10px" id="exDesc">Jouez les notes dans l'ordre.</p>
+    <div class="notes-row" id="exNotes"></div>
+    <div id="exFB" style="margin:10px 0"></div>
+    <div class="finger-legend">
+      <div class="f-pill" style="background:rgba(231,76,60,.1)"><div class="f-dot" style="background:var(--f1)">1</div><span style="font-size:.75rem;color:rgba(245,234,212,.6)">Index</span></div>
+      <div class="f-pill" style="background:rgba(41,128,185,.1)"><div class="f-dot" style="background:var(--f2)">2</div><span style="font-size:.75rem;color:rgba(245,234,212,.6)">Majeur</span></div>
+      <div class="f-pill" style="background:rgba(39,174,96,.1)"><div class="f-dot" style="background:var(--f3)">3</div><span style="font-size:.75rem;color:rgba(245,234,212,.6)">Annulaire</span></div>
+      <div class="f-pill" style="background:rgba(230,126,34,.1)"><div class="f-dot" style="background:var(--f4)">4</div><span style="font-size:.75rem;color:rgba(245,234,212,.6)">Auriculaire</span></div>
+    </div>
+  </div>
+  <div id="exScoreBox" style="display:none" class="card">
+    <div style="text-align:center;padding:10px 0">
+      <div class="score-ring"><svg viewBox="0 0 100 100" width="90" height="90"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/><circle cx="50" cy="50" r="42" fill="none" stroke="var(--gold)" stroke-width="8" stroke-dasharray="264" id="scoreArc" stroke-dashoffset="264" stroke-linecap="round" style="transition:stroke-dashoffset .8s ease"/></svg><div class="score-text" id="scoreTxt">0%</div></div>
+      <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold2);margin-bottom:4px" id="scoreFB">—</div>
+      <div style="font-size:.8rem;color:rgba(245,234,212,.45)" id="scoreXPGain"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">⏱ Métronome</div>
+    <div class="metro-wrap">
+      <div class="metro-beat" id="b1"></div><div class="metro-beat" id="b2"></div><div class="metro-beat" id="b3"></div><div class="metro-beat" id="b4"></div>
+      <div style="flex:1"></div>
+      <div class="bpm-ctrl"><button class="bpm-btn" onclick="chBPM(-5)">−</button><div style="font-size:.9rem;color:var(--gold2);min-width:50px;text-align:center"><span id="bpmDisp">60</span><br><span style="font-size:.62rem;color:rgba(245,234,212,.32)">BPM</span></div><button class="bpm-btn" onclick="chBPM(5)">+</button></div>
+    </div>
+    <button class="btn btn-outline btn-sm" id="metroBtn" onclick="toggleMetro()">▶ Démarrer</button>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+    <button class="btn btn-gold" id="exBtn" onclick="toggleExercise()">🎤 Commencer</button>
+    <button class="btn btn-outline btn-sm" onclick="resetEx()">↺ Recommencer</button>
+  </div>
+</div>
+
+<!-- ══ BIBLIOTHÈQUE ══ -->
+<div class="page" id="page-library">
+  <div id="libListV">
+    <div class="sec-title">🎼 Bibliothèque</div>
+    <div class="lib-search"><span style="color:rgba(245,234,212,.28)">🔍</span><input type="text" placeholder="Rechercher…" id="searchInput" oninput="filterSearch()"></div>
+    <!-- Onglets artistes -->
+    <div class="artist-tabs" id="artistTabs"></div>
+    <!-- Grille / sections -->
+    <div id="libContent"></div>
+  </div>
+
+  <div class="piece-viewer" id="pieceViewer">
+    <div class="lesson-header">
+      <button class="back-btn" onclick="backToLib()">← Retour</button>
+      <div style="font-family:'Playfair Display',serif;font-size:.9rem;color:var(--gold2)" id="pvTitle"></div>
+    </div>
+    <div class="card" id="pvInfo"></div>
+
+    <!-- ACCORDS VISUELS -->
+    <div class="card" id="pvChordsCard" style="display:none">
+      <div class="card-title">🎸 Accords utilisés</div>
+      <div class="chords-row" id="pvChords"></div>
+    </div>
+
+    <!-- PAROLES + ACCORDS -->
+    <div class="card" id="pvLyricsCard" style="display:none">
+      <div class="card-title">📝 Paroles & Accords</div>
+      <div class="lyrics-block" id="pvLyrics"></div>
+    </div>
+
+    <!-- TABLATURE -->
+    <div class="card" id="pvTabCard" style="display:none">
+      <div class="card-title">📜 Tablature / Riff</div>
+      <div class="tab-notation" id="pvTab"></div>
+    </div>
+
+    <!-- DOIGTÉS -->
+    <div class="card" id="pvFBCard">
+      <div class="card-title">🤚 Position des doigts</div>
+      <div id="pvFB"></div>
+      <div class="finger-legend" style="margin-top:8px">
+        <div class="f-pill" style="background:rgba(231,76,60,.1)"><div class="f-dot" style="background:var(--f1)">1</div><span style="font-size:.75rem;color:rgba(245,234,212,.6)">Index</span></div>
+        <div class="f-pill" style="background:rgba(41,128,185,.1)"><div class="f-dot" style="background:var(--f2)">2</div><span style="font-size:.75rem;color:rgba(245,234,212,.6)">Majeur</span></div>
+        <div class="f-pill" style="background:rgba(39,174,96,.1)"><div class="f-dot" style="background:var(--f3)">3</div><span style="font-size:.75rem;color:rgba(245,234,212,.6)">Annulaire</span></div>
+        <div class="f-pill" style="background:rgba(230,126,34,.1)"><div class="f-dot" style="background:var(--f4)">4</div><span style="font-size:.75rem;color:rgba(245,234,212,.6)">Auriculaire</span></div>
+      </div>
+    </div>
+
+    <!-- LECTURE GUIDÉE -->
+    <div class="card" id="pvGuidedCard" style="display:none">
+      <div class="card-title">🎯 Mode Lecture Guidée</div>
+      <div class="guided-note" id="guidedNoteBox">
+        <div class="gn-note" id="gnNote">—</div>
+        <div class="gn-info" id="gnInfo">Appuyez sur Lecture Guidée pour commencer</div>
+        <div class="gn-result" id="gnResult"></div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn btn-gold btn-sm" id="guidedBtn" onclick="toggleGuided()">🎯 Lecture Guidée</button>
+        <button class="btn btn-outline btn-sm" id="guidedListenBtn" onclick="toggleGuidedListen()" style="display:none">🎤 Écouter</button>
+      </div>
+    </div>
+
+    <!-- PLAYER -->
+    <div class="card">
+      <div class="card-title">▶️ Métronome de pratique</div>
+      <div class="player-ctrl">
+        <button class="play-btn" id="piecePlayBtn" onclick="togglePiecePlay()">▶</button>
+        <div style="flex:1"><div class="prog-bar-wrap" onclick="seekPiece(event)"><div class="prog-bar-fill" id="pieceProgBar"></div></div><div style="display:flex;justify-content:space-between;margin-top:3px;font-size:.68rem;color:rgba(245,234,212,.32)"><span id="pieceTimeE">0:00</span><span id="pieceTimeD">—</span></div></div>
+        <div class="bpm-ctrl"><button class="bpm-btn" onclick="chPBPM(-5)">−</button><div style="font-size:.78rem;color:var(--gold2);min-width:46px;text-align:center"><span id="pBPMDisp">80</span><br><span style="font-size:.6rem;color:rgba(245,234,212,.32)">BPM</span></div><button class="bpm-btn" onclick="chPBPM(5)">+</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PROFIL ══ -->
+<div class="page" id="page-profile">
+  <div class="sec-title">👤 Mon Profil</div>
+  <div class="card" style="text-align:center;padding:20px">
+    <div class="profile-lvl" id="profLvlNum">1</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold2)" id="profLvlName">Débutant</div>
+    <div style="font-size:.82rem;color:rgba(245,234,212,.4);font-style:italic;margin-bottom:14px" id="profLvlSub">Continuez chaque jour !</div>
+    <div style="display:flex;justify-content:space-between;font-size:.78rem;color:rgba(245,234,212,.38);margin-bottom:4px"><span id="profXPLbl">0 XP</span><span id="profXPNext">500 XP → Niveau 2</span></div>
+    <div class="prog-track"><div class="prog-fill" id="profXPBar" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 Statistiques</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="text-align:center;padding:10px;background:rgba(201,146,58,.05);border-radius:10px"><div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--gold2)" id="psDays">0</div><div style="font-size:.68rem;color:rgba(245,234,212,.38)">Jours pratiqués</div></div>
+      <div style="text-align:center;padding:10px;background:rgba(201,146,58,.05);border-radius:10px"><div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--gold2)" id="psStreak">0</div><div style="font-size:.68rem;color:rgba(245,234,212,.38)">Jours consécutifs 🔥</div></div>
+      <div style="text-align:center;padding:10px;background:rgba(201,146,58,.05);border-radius:10px"><div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--gold2)" id="psLess">0</div><div style="font-size:.68rem;color:rgba(245,234,212,.38)">Leçons terminées</div></div>
+      <div style="text-align:center;padding:10px;background:rgba(201,146,58,.05);border-radius:10px"><div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--gold2)" id="psBest">—</div><div style="font-size:.68rem;color:rgba(245,234,212,.38)">Meilleur score</div></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">🏆 Badges</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="allBadges"></div></div>
+  <div class="card"><div class="card-title">⚙️ Options</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="installPWA()">📱 Installer comme app</button>
+      <button class="btn btn-red btn-sm" onclick="resetAll()">🗑 Réinitialiser</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+const DEF={xp:0,streak:0,practiceDays:0,lastPractice:null,completedLessons:[],bestScore:null,earnedBadges:[],favorites:[],totalEx:0};
+let S=JSON.parse(localStorage.getItem('gcState2')||'null')||{...DEF};
+function save(){localStorage.setItem('gcState2',JSON.stringify(S));}
+// Streak check
+(()=>{const today=new Date().toDateString(),yesterday=new Date(Date.now()-86400000).toDateString();
+  if(S.lastPractice!==today){if(S.lastPractice===yesterday)S.streak=(S.streak||0)+1;else if(S.lastPractice&&S.lastPractice!==today&&S.lastPractice!==yesterday)S.streak=1;
+  S.lastPractice=today;S.practiceDays=(S.practiceDays||0)+1;save();}})();
+
+// ══════════════════════════════════════════════════
+// LEVELS & BADGES
+// ══════════════════════════════════════════════════
+const LEVELS=[{min:0,max:500,name:'Débutant',sub:'Les premiers pas',num:1},{min:500,max:1200,name:'Initié',sub:'Les bases acquises',num:2},{min:1200,max:2500,name:'Apprenti',sub:'La musique parle',num:3},{min:2500,max:4500,name:'Intermédiaire',sub:'Le jeu devient fluide',num:4},{min:4500,max:7000,name:'Musicien',sub:"L'expression s'affirme",num:5},{min:7000,max:10000,name:'Avancé',sub:'La technique maîtrisée',num:6},{min:10000,max:99999,name:'Virtuose',sub:'Vous inspirez',num:7}];
+const getLevel=xp=>LEVELS.find(l=>xp>=l.min&&xp<l.max)||LEVELS[LEVELS.length-1];
+
+const BADGES=[
+  {id:'first_lesson',icon:'📖',name:'Première leçon'},{id:'tuner_used',icon:'🎵',name:'Accordeur'},
+  {id:'perfect_score',icon:'💯',name:'Score parfait'},{id:'5_lessons',icon:'🎓',name:'Élève assidu'},
+  {id:'streak_3',icon:'🔥',name:'En feu'},{id:'streak_7',icon:'⚡',name:'Semaine parfaite'},
+  {id:'library_piece',icon:'🎼',name:'Mélomane'},{id:'guided_done',icon:'🎯',name:'Lecture guidée'},
+  {id:'fav_piece',icon:'❤️',name:'Coup de cœur'},{id:'1000xp',icon:'⭐',name:'1000 XP'},
+  {id:'acdc_fan',icon:'⚡',name:'Fan AC/DC'},{id:'metal_fan',icon:'🤘',name:'Fan Metallica'},
+  {id:'chanson_fr',icon:'🇫🇷',name:'Chanson française'},
+];
+function earnBadge(id){
+  if(S.earnedBadges.includes(id))return;
+  S.earnedBadges.push(id);save();
+  const b=BADGES.find(x=>x.id===id);if(!b)return;
+  document.getElementById('bpIcon').textContent=b.icon;
+  document.getElementById('bpName').textContent=b.name;
+  const p=document.getElementById('badgePopup');p.classList.add('show');
+  setTimeout(()=>p.classList.remove('show'),3500);
+  showToast('🏆 Badge : '+b.name);addXP(50,'badge');
+}
+function checkBadges(){
+  if(S.completedLessons.length>=1)earnBadge('first_lesson');
+  if(S.completedLessons.length>=5)earnBadge('5_lessons');
+  if(S.streak>=3)earnBadge('streak_3');if(S.streak>=7)earnBadge('streak_7');
+  if(S.xp>=1000)earnBadge('1000xp');
+}
+
+// ══════════════════════════════════════════════════
+// XP & TOAST
+// ══════════════════════════════════════════════════
+function addXP(n){S.xp+=n;save();updateHeaderXP();checkBadges();
+  const el=document.createElement('div');el.className='xp-anim';el.textContent='+'+n+' XP';
+  el.style.cssText=`left:${Math.random()*60+20}%;top:30%`;document.body.appendChild(el);setTimeout(()=>el.remove(),1600);}
+function updateHeaderXP(){document.getElementById('hXP').textContent=S.xp;document.getElementById('hStreak').textContent=S.streak||0;}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+// ══════════════════════════════════════════════════
+// FRETBOARD SVG
+// ══════════════════════════════════════════════════
+function buildFB(container,highlights=[],frets=5,startFret=0){
+  const W=310,sg=22,fg=44,pL=28,pT=13;const H=sg*5+pT*2+16;
+  const FW=fg*frets+(startFret===0?5:0);
+  const sc=['#e8b86d','#d4a056','#c08040','#ac6c30','#985820','#c8a060'];
+  const sl=['e','B','G','D','A','E'];const fc=['transparent','#e74c3c','#2980b9','#27ae60','#e67e22'];
+  let s=`<svg class="fb-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="max-width:100%">`;
+  s+=`<rect x="0" y="0" width="${W}" height="${H}" rx="9" fill="#1a0d00"/>`;
+  if(startFret===0)s+=`<rect x="${pL}" y="${pT-2}" width="5" height="${sg*5+4}" fill="#e8d0a0" rx="2"/>`;
+  for(let f=0;f<=frets;f++){const x=pL+(startFret===0?5:0)+f*fg;s+=`<rect x="${x}" y="${pT}" width="${f===frets?2:3}" height="${sg*5}" fill="${f===frets?'#5a4020':'#7a6040'}" rx="1"/>`;
+    if(f>0&&f<frets){const mx=pL+(startFret===0?5:0)+(f-.5)*fg,fn=startFret+f;
+      if(fn===3||fn===5||fn===7||fn===9||fn===12)s+=`<circle cx="${mx}" cy="${pT+sg*2.5}" r="4" fill="rgba(245,234,212,.13)"/>`;
+      s+=`<text x="${mx}" y="${H-3}" text-anchor="middle" font-size="9" fill="rgba(200,170,100,.38)" font-family="Crimson Pro,serif">${fn}</text>`;}
+  }
+  for(let i=0;i<6;i++){const y=pT+i*sg;s+=`<line x1="${pL}" y1="${y}" x2="${pL+FW+8}" y2="${y}" stroke="${sc[i]}" stroke-width="${0.8+i*.22}" opacity=".7"/>`;
+    s+=`<text x="${pL-5}" y="${y+4}" text-anchor="end" font-size="9" fill="${sc[i]}" font-family="Crimson Pro,serif" font-weight="bold">${sl[i]}</text>`;}
+  for(const h of highlights){const si=h.string-1,y=pT+si*sg,fo=startFret===0?5:0,col=fc[h.finger]||'#888';
+    if(h.fret===0){s+=`<circle cx="${pL-13}" cy="${y}" r="7" fill="none" stroke="${sc[si]}" stroke-width="1.8"/>`;if(h.label)s+=`<text x="${pL-13}" y="${y+4}" text-anchor="middle" font-size="8" fill="${sc[si]}" font-family="Crimson Pro,serif">${h.label}</text>`;}
+    else{const fx=pL+fo+(h.fret-startFret-.5)*fg;s+=`<circle cx="${fx}" cy="${y}" r="9" fill="${col}" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>`;
+      s+=`<text x="${fx}" y="${y+4}" text-anchor="middle" font-size="10" fill="white" font-family="Crimson Pro,serif" font-weight="bold">${h.finger||''}</text>`;
+      if(h.label)s+=`<text x="${fx}" y="${y+20}" text-anchor="middle" font-size="8" fill="rgba(245,234,212,.6)" font-family="Crimson Pro,serif">${h.label}</text>`;}}
+  s+=`</svg>`;container.innerHTML=s;
+}
+
+// Chord diagram (petit manche vertical)
+function chordSVG(chordDef){
+  const {name,strings,barre,startFret=1}=chordDef;
+  const W=60,H=70,cW=8,fH=9,pL=8,pT=18,strings6=strings||[];
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="60" height="70">`;
+  s+=`<text x="${W/2}" y="11" text-anchor="middle" font-size="10" fill="#e8b86d" font-family="Playfair Display,serif" font-weight="bold">${name}</text>`;
+  if(startFret===1)s+=`<rect x="${pL}" y="${pT}" width="${cW*5}" height="2" fill="#e8d0a0" rx="1"/>`;
+  else s+=`<text x="${pL-2}" y="${pT+fH+3}" text-anchor="end" font-size="7" fill="rgba(245,234,212,.5)" font-family="Crimson Pro">${startFret}fr</text>`;
+  for(let f=0;f<=4;f++)s+=`<line x1="${pL}" y1="${pT+(startFret===1?2:0)+f*fH}" x2="${pL+cW*5}" y2="${pT+(startFret===1?2:0)+f*fH}" stroke="rgba(255,255,255,.15)" stroke-width="0.8"/>`;
+  for(let i=0;i<6;i++)s+=`<line x1="${pL+i*cW}" y1="${pT}" x2="${pL+i*cW}" y2="${pT+fH*4}" stroke="rgba(201,146,58,.4)" stroke-width="0.8"/>`;
+  if(barre)s+=`<rect x="${pL+barre.from*cW-cW/2}" y="${pT+(startFret===1?2:0)+(barre.fret-1)*fH-3}" width="${(barre.to-barre.from)*cW+cW}" height="6" fill="#e74c3c" rx="3"/>`;
+  const fc2=['#e74c3c','#2980b9','#27ae60','#e67e22','#9b59b6'];
+  strings6.forEach((f,i)=>{if(f==='x')s+=`<text x="${pL+i*cW}" y="${pT-3}" text-anchor="middle" font-size="7" fill="rgba(245,234,212,.4)" font-family="Crimson Pro">x</text>`;
+    else if(f===0)s+=`<circle cx="${pL+i*cW}" cy="${pT-4}" r="3" fill="none" stroke="rgba(245,234,212,.5)" stroke-width="1"/>`;
+    else{const cy=pT+(startFret===1?2:0)+(f-1)*fH+fH/2;s+=`<circle cx="${pL+i*cW}" cy="${cy}" r="4" fill="${fc2[i%5]||'#888'}"/>`;}});
+  return s+'</svg>';
+}
+
+// ══════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════
+function showPage(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('nav-'+p).classList.add('active');
+  if(p==='home')updateHome();if(p==='tuner'){renderTunerFB();earnBadge('tuner_used');}
+  if(p==='lessons')renderLessons();if(p==='exercise')renderExPage();
+  if(p==='library')renderLibrary();if(p==='profile')renderProfile();
+}
+
+// ══════════════════════════════════════════════════
+// HOME
+// ══════════════════════════════════════════════════
+const TIPS=['«\u00a0Accordez toujours avant de jouer. L\'oreille se forme à chaque note.\u00a0»','«\u00a015 minutes par jour valent mieux qu\'une heure le week-end.\u00a0»','«\u00a0Ongles courts à gauche, un peu longs à droite — c\'est la règle des guitaristes classiques.\u00a0»','«\u00a0Jouez lentement. La vitesse vient avec la précision, jamais l\'inverse.\u00a0»','«\u00a0Écoutez Tárrega, Segovia, Williams. L\'oreille musicale se nourrit aussi de l\'écoute.\u00a0»','«\u00a0Un accord propre = chaque corde sonne clairement. Testez-les une par une.\u00a0»','«\u00a0AC/DC ou Beethoven — la guitare parle toutes les langues.\u00a0»'];
+function updateHome(){
+  const lvl=getLevel(S.xp),pct=Math.min(100,(S.xp-lvl.min)/(lvl.max-lvl.min)*100);
+  document.getElementById('homeGreeting').textContent=`Bonjour, ${lvl.name} !`;
+  document.getElementById('homeSub').textContent=lvl.sub;
+  document.getElementById('homeLvl').textContent=lvl.name;
+  document.getElementById('homeXPLbl').textContent=`${S.xp} / ${lvl.max} XP`;
+  document.getElementById('homeXPBar').style.width=pct+'%';
+  document.getElementById('sDays').textContent=S.practiceDays||0;
+  document.getElementById('sLess').textContent=S.completedLessons.length;
+  document.getElementById('sScore').textContent=S.bestScore?S.bestScore+'%':'—';
+  document.getElementById('sBadge').textContent=S.earnedBadges.length;
+  updateHeaderXP();
+  const nxt=LESSONS.find(l=>!S.completedLessons.includes(l.id));
+  document.getElementById('nextLName').textContent=nxt?nxt.title:'Tout complété !';
+  document.getElementById('tipDay').textContent=TIPS[new Date().getDay()%TIPS.length];
+}
+function continueLesson(){showPage('lessons');const nxt=LESSONS.find(l=>!S.completedLessons.includes(l.id));if(nxt)setTimeout(()=>showLesson(LESSONS.indexOf(nxt)),100);}
+
+// ══════════════════════════════════════════════════
+// ACCORDEUR (YIN)
+// ══════════════════════════════════════════════════
+let tActive=false,tACtx=null,tAn=null,tStream=null,tAnimId=null;
+const NNAMES=['Do','Do#','Ré','Ré#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+function yinP(buf,sr){
+  const W=buf.length,hW=Math.floor(W/2);let rms=0;for(let i=0;i<W;i++)rms+=buf[i]*buf[i];rms=Math.sqrt(rms/W);if(rms<0.008)return-1;
+  const d=new Float32Array(hW);let rs=0;for(let t=1;t<hW;t++){let s=0;for(let j=0;j<hW;j++){const x=buf[j]-buf[j+t];s+=x*x;}d[t]=s;rs+=s;d[t]=rs?d[t]*t/rs:1;}
+  d[0]=1;let tau=-1;for(let t=2;t<hW;t++){if(d[t]<0.1){while(t+1<hW&&d[t+1]<d[t])t++;tau=t;break;}}
+  if(tau<2){let m=1e9;for(let t=2;t<hW;t++)if(d[t]<m){m=d[t];tau=t;}}
+  if(tau<2)return-1;const x1=d[tau-1],x2=d[tau],x3=d[tau+1];const a=(x1+x3-2*x2)/2,b=(x3-x1)/2;return sr/(a?tau-b/(2*a):tau);
+}
+function freqToNote(freq){const A4=440,n=Math.round(12*Math.log2(freq/A4)),sem=((n%12)+12)%12,oct=4+Math.floor(n/12),ef=A4*Math.pow(2,n/12);return{note:NNAMES[sem],octave:oct,cents:Math.round(1200*Math.log2(freq/ef))};}
+function renderTunerFB(){buildFB(document.getElementById('tunerFB'),[{string:6,fret:5,finger:1,label:'La'},{string:5,fret:5,finger:1,label:'Ré'},{string:4,fret:5,finger:1,label:'Sol'},{string:3,fret:4,finger:1,label:'Si'},{string:2,fret:5,finger:1,label:'Mi'}],5,0);}
+async function toggleTuner(){
+  if(!tActive){try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    tStream=stream;tACtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:44100});
+    tAn=tACtx.createAnalyser();tAn.fftSize=4096;tAn.smoothingTimeConstant=0.5;
+    tACtx.createMediaStreamSource(stream).connect(tAn);tActive=true;
+    document.getElementById('tunerBtn').textContent='⏹ Arrêter';
+    document.getElementById('tStatus').className='tuner-status s-listen';
+    document.getElementById('tStatus').textContent='🎤 Écoute en cours…';
+    earnBadge('tuner_used');let fh=[];
+    function loop(){if(!tActive)return;const buf=new Float32Array(tAn.fftSize);tAn.getFloatTimeDomainData(buf);const f=yinP(buf,tACtx.sampleRate);
+      if(f>55&&f<1200){fh.push(f);if(fh.length>5)fh.shift();const s=[...fh].sort((a,b)=>a-b),mf=s[Math.floor(s.length/2)];
+        const{note,octave,cents}=freqToNote(mf);const ne=document.getElementById('tNote');ne.textContent=note+octave;
+        document.getElementById('tFreq').textContent=mf.toFixed(1)+' Hz';const pos=50+cents*.75;
+        const bar=document.getElementById('cBar');bar.style.left=Math.max(4,Math.min(96,pos))+'%';
+        document.getElementById('cLbl').textContent=(cents>=0?'+':'')+cents+' cents';const ac=Math.abs(cents);
+        if(ac<5){ne.className='note-big in-tune';bar.classList.add('in-tune');document.getElementById('tStatus').className='tuner-status s-tuned';document.getElementById('tStatus').textContent='✅ Accordé !';}
+        else{bar.classList.remove('in-tune');if(cents<0){ne.className='note-big too-low';document.getElementById('tStatus').className='tuner-status s-low';document.getElementById('tStatus').textContent='⬆ Montez ('+Math.abs(cents)+' cents trop bas)';}
+          else{ne.className='note-big too-high';document.getElementById('tStatus').className='tuner-status s-high';document.getElementById('tStatus').textContent='⬇ Baissez ('+cents+' cents trop haut)';}}}
+      tAnimId=requestAnimationFrame(loop);}loop();
+  }catch(e){document.getElementById('tStatus').className='tuner-status s-idle';document.getElementById('tStatus').textContent='❌ Micro non autorisé';}}
+  else{tActive=false;if(tAnimId)cancelAnimationFrame(tAnimId);if(tStream)tStream.getTracks().forEach(t=>t.stop());if(tACtx)tACtx.close();
+    document.getElementById('tunerBtn').textContent='🎤 Démarrer l\'accordeur';document.getElementById('tNote').textContent='—';
+    document.getElementById('tNote').className='note-big';document.getElementById('tFreq').textContent='Appuyez sur Démarrer';
+    document.getElementById('cLbl').textContent='— cents';document.getElementById('tStatus').className='tuner-status s-idle';document.getElementById('tStatus').textContent='Accordeur arrêté';}
+}
+function playRef(idx){const freqs=[82.41,110,146.83,196,246.94,329.63];const ctx=new(window.AudioContext||window.webkitAudioContext)();
+  [1,2,3,4].forEach((h,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=freqs[idx]*h;const a=[0.45,0.22,0.1,0.05][i];g.gain.setValueAtTime(a,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+2.2);o.start();o.stop(ctx.currentTime+2.3);});
+  document.querySelectorAll('.str-btn').forEach((b,i)=>{b.classList.toggle('act',i===idx);if(i===idx)setTimeout(()=>b.classList.remove('act'),2400);});}
+
+// ══════════════════════════════════════════════════
+// LEÇONS
+// ══════════════════════════════════════════════════
+const LESSONS=[
+  {id:0,level:'beg',icon:'🎸',title:'Anatomie de la guitare',sub:'Les parties essentielles',xp:30,content:`<h2>🎸 La guitare classique</h2><p>Instrument à cordes en nylon, développé en Espagne au XIXe siècle. Antonio Torres lui a donné sa forme définitive vers 1850.</p><div class="step-row"><span class="step-n">1</span><span class="step-t"><strong style="color:var(--gold3)">La tête</strong> — mécaniques d'accordage</span></div><div class="step-row"><span class="step-n">2</span><span class="step-t"><strong style="color:var(--gold3)">Le manche</strong> — cases et frettes</span></div><div class="step-row"><span class="step-n">3</span><span class="step-t"><strong style="color:var(--gold3)">La table d'harmonie</strong> — amplifie le son</span></div><div class="step-row"><span class="step-n">4</span><span class="step-t"><strong style="color:var(--gold3)">La rosace</strong> — projette le son</span></div><div class="step-row"><span class="step-n">5</span><span class="step-t"><strong style="color:var(--gold3)">Le chevalet</strong> — fixe les cordes</span></div><div class="tip">🧠 Mémo cordes : <strong>Mi La Ré Sol Si Mi</strong> — "Mon Ami René Souffre Sans Médicaments"</div>`},
+  {id:1,level:'beg',icon:'🪑',title:'Posture & Position',sub:'Tenir la guitare correctement',xp:30,content:`<h2>🪑 La posture</h2><p>En classique, la position est codifiée pour optimiser la technique et éviter les blessures.</p><div class="step-row"><span class="step-n">1</span><span class="step-t">Bord de chaise, dos droit, pieds à plat</span></div><div class="step-row"><span class="step-n">2</span><span class="step-t">Guitare sur la <strong style="color:var(--gold3)">cuisse gauche</strong>, repose-pied sous le pied gauche</span></div><div class="step-row"><span class="step-n">3</span><span class="step-t">Manche à <strong style="color:var(--gold3)">45°</strong>, table quasiment verticale</span></div><div class="step-row"><span class="step-n">4</span><span class="step-t">Main gauche : pouce derrière le manche, doigts perpendiculaires aux cordes</span></div><div class="step-row"><span class="step-n">5</span><span class="step-t">Main droite : coude sur le bord, poignet bombé, doigts sur les cordes</span></div><div class="tip">💡 Notation main droite : <strong>p</strong>=pouce, <strong>i</strong>=index, <strong>m</strong>=majeur, <strong>a</strong>=annulaire</div>`},
+  {id:2,level:'beg',icon:'🎵',title:'Lire une tablature',sub:'Comprendre la notation',xp:40,content:`<h2>🎵 La tablature</h2><p>6 lignes = 6 cordes. Ligne du bas = Mi grave, ligne du haut = Mi aigu. Les chiffres indiquent la case.</p><div class="tab-notation">e|---0---1---3---|  ← Corde 1 (Mi aigu)
+B|---0---1---0---|  ← Corde 2 (Si)
+G|---0---0---0---|  ← Corde 3 (Sol)
+D|---2---2---0---|  ← Corde 4 (Ré)
+A|---2---0---2---|  ← Corde 5 (La)
+E|---0---x---3---|  ← Corde 6 (Mi grave)</div><div class="step-row" style="margin-top:10px"><span class="step-n">0</span><span class="step-t">Corde à vide (sans appuyer)</span></div><div class="step-row"><span class="step-n">x</span><span class="step-t">Corde non jouée</span></div><div class="tip">📖 On lit de gauche à droite. Notes verticales = jouées ensemble (accord). Notes en séquence = mélodie.</div>`},
+  {id:3,level:'beg',icon:'🤚',title:'Premiers accords',sub:'Do, Sol, La min, Mi min',xp:50,content:`<h2>🤚 Les 4 premiers accords</h2><div class="tab-notation">Do (C)        Sol (G)       La min (Am)   Mi min (Em)
+e|---0---|    e|---3---|    e|---0---|    e|---0---|
+B|---1---|    B|---0---|    B|---1---|    B|---0---|
+G|---0---|    G|---0---|    G|---2---|    G|---0---|
+D|---2---|    D|---0---|    D|---2---|    D|---2---|
+A|---3---|    A|---2---|    A|---0---|    A|---2---|
+E|---x---|    E|---3---|    E|---x---|    E|---0---|</div><div class="tip">⭐ Em = seulement 2 doigts. Commencez par lui ! Am → Em → C → G est une progression classique.</div>`},
+  {id:4,level:'beg',icon:'🎼',title:'Gamme de Do Majeur',sub:'Première gamme complète',xp:60,content:`<h2>🎼 Do Majeur</h2><p>8 notes, aucun dièse ni bémol : <strong style="color:var(--gold3)">Do–Ré–Mi–Fa–Sol–La–Si–Do</strong></p><div class="tab-notation">e|---0-1-3---|
+B|---0-1-----|
+G|---0-2-----|
+D|---0-2-3---|
+A|---3-------|
+E|-----------|
+ Do Ré Mi Fa Sol La Si Do</div><div class="tip">⏱ Métronome à 50 BPM, montant puis descendant. Augmentez de 5 BPM par session.</div>`},
+  {id:5,level:'int',icon:'🎭',title:'Le barré',sub:'Technique fondamentale',xp:80,content:`<h2>🎭 Le barré</h2><p>L'index à plat sur toutes les cordes d'une case. Permet de transposer n'importe quel accord.</p><div class="step-row"><span class="step-n">1</span><span class="step-t">Index bien droit, juste derrière la frette</span></div><div class="step-row"><span class="step-n">2</span><span class="step-t">Utilisez la partie osseuse du doigt</span></div><div class="step-row"><span class="step-n">3</span><span class="step-t">Pouce opposé derrière le manche</span></div><div class="step-row"><span class="step-n">4</span><span class="step-t">Commencez case 5, descendez progressivement vers case 1</span></div><div class="tip">💪 Fa Majeur (barré case 1) est le barré standard. Testez chaque corde individuellement.</div>`},
+  {id:6,level:'int',icon:'🌊',title:'Arpèges',sub:'Le cœur de la guitare classique',xp:90,content:`<h2>🌊 Les arpèges</h2><p>Jouer les notes d'un accord une par une. Patron de base : <strong style="color:var(--gold3)">p–i–m–a</strong></p><div class="tab-notation">Am  :  p  i  m  a  m  i
+e|---0-----------0-----|
+B|-----1-------1-------|
+G|-------2---2---------|
+A|-0-------0-----------|</div><div class="tip">🎵 Ne levez pas les doigts entre les notes — ils doivent rester en position sur la corde.</div>`},
+  {id:7,level:'adv',icon:'🦋',title:'Trémolo',sub:'La technique de Tárrega',xp:150,content:`<h2>🦋 Le Trémolo</h2><p>Mélodie répétée rapidement par les doigts <strong style="color:var(--gold3)">a–m–i</strong> pendant que le pouce joue les basses.</p><div class="tab-notation">Patron : p – a – m – i (répéter)
+e|-p-a-m-i-a-m-i-a-m-i-|
+ Basse    Mélodie (x3)</div><div class="tip">🎯 Travaillez a–m–i seul, très lentement. La régularité prime sur la vitesse. Référence : "Recuerdos de la Alhambra"</div>`},
+];
+function renderLessons(){
+  document.getElementById('lessonsListV').style.display='block';document.getElementById('lessonDetailV').classList.remove('active');
+  const done=S.completedLessons.length;document.getElementById('lProg').textContent=`${done} / ${LESSONS.length}`;document.getElementById('lProgBar').style.width=(done/LESSONS.length*100)+'%';
+  ['beg','int','adv'].forEach((lv,li)=>{const id=['lessListBeg','lessListInt','lessListAdv'][li],el=document.getElementById(id);el.innerHTML='';
+    LESSONS.filter(l=>l.level===lv).forEach((l)=>{const gi=LESSONS.indexOf(l),isDone=S.completedLessons.includes(l.id),prev=LESSONS[gi-1],isLocked=gi>0&&prev&&!S.completedLessons.includes(prev.id);
+      const d=document.createElement('div');d.className='lesson-item'+(isDone?' done':'')+(isLocked?' locked':'');
+      d.innerHTML=`<div class="l-icon">${isDone?'✅':isLocked?'🔒':l.icon}</div><div class="l-info"><div class="l-title">${l.title}</div><div class="l-sub">${l.sub}</div><div class="l-xp">+${l.xp} XP</div></div><div class="l-arrow">${isLocked?'':'›'}</div>`;
+      if(!isLocked)d.onclick=()=>showLesson(gi);el.appendChild(d);});});
+}
+let curLIdx=0;
+function showLesson(idx){curLIdx=idx;const l=LESSONS[idx];document.getElementById('lessonsListV').style.display='none';document.getElementById('lessonDetailV').classList.add('active');document.getElementById('lDetailTitle').textContent=l.title;document.getElementById('lDetailContent').innerHTML=l.content;const isDone=S.completedLessons.includes(l.id);document.getElementById('completeLBtn').textContent=isDone?'✅ Déjà terminée':'✅ Marquer terminée (+'+l.xp+' XP)';}
+function backToLessons(){document.getElementById('lessonsListV').style.display='block';document.getElementById('lessonDetailV').classList.remove('active');}
+function completeLesson(){const l=LESSONS[curLIdx];if(!S.completedLessons.includes(l.id)){S.completedLessons.push(l.id);addXP(l.xp);save();showToast('🎉 +'+l.xp+' XP !');checkBadges();}backToLessons();renderLessons();}
+
+// ══════════════════════════════════════════════════
+// EXERCICE
+// ══════════════════════════════════════════════════
+const EXERCISES=[
+  {title:'🎯 Do Majeur',desc:'Gamme de Do, une octave.',notes:[{note:'Do',str:5,fret:3,finger:3},{note:'Ré',str:4,fret:0,finger:0},{note:'Mi',str:4,fret:2,finger:2},{note:'Fa',str:4,fret:3,finger:3},{note:'Sol',str:3,fret:0,finger:0},{note:'La',str:3,fret:2,finger:2},{note:'Si',str:2,fret:0,finger:0},{note:'Do',str:2,fret:1,finger:1}]},
+  {title:'🌙 La Mineur',desc:'Gamme de La mineur naturelle.',notes:[{note:'La',str:5,fret:0,finger:0},{note:'Si',str:5,fret:2,finger:2},{note:'Do',str:5,fret:3,finger:3},{note:'Ré',str:4,fret:0,finger:0},{note:'Mi',str:4,fret:2,finger:2},{note:'Fa',str:4,fret:3,finger:3},{note:'Sol',str:3,fret:0,finger:0},{note:'La',str:3,fret:2,finger:2}]},
+  {title:'🎪 Arpège Am',desc:'Arpège p–i–m–a sur La mineur.',notes:[{note:'La',str:5,fret:0,finger:0},{note:'Mi',str:3,fret:2,finger:2},{note:'La',str:2,fret:1,finger:1},{note:'Do',str:1,fret:0,finger:0},{note:'La',str:2,fret:1,finger:1},{note:'Mi',str:3,fret:2,finger:2},{note:'La',str:5,fret:0,finger:0},{note:'Do',str:1,fret:0,finger:0}]},
+  {title:'⚡ Chromatique',desc:'Indépendance des doigts.',notes:[{note:'Mi',str:6,fret:0,finger:0},{note:'Fa',str:6,fret:1,finger:1},{note:'Fa#',str:6,fret:2,finger:2},{note:'Sol',str:6,fret:3,finger:3},{note:'La',str:5,fret:0,finger:0},{note:'La#',str:5,fret:1,finger:1},{note:'Si',str:5,fret:2,finger:2},{note:'Do',str:5,fret:3,finger:3}]},
+];
+const NF={'Do':261.63,'Do#':277.18,'Ré':293.66,'Ré#':311.13,'Mi':329.63,'Fa':349.23,'Fa#':369.99,'Sol':392.00,'Sol#':415.30,'La':440.00,'La#':466.16,'Si':493.88};
+function noteFromFreq(freq){let best=null,bd=Infinity;for(const[nm,f] of Object.entries(NF))for(let o=-2;o<=2;o++){const ff=f*Math.pow(2,o),diff=Math.abs(freq-ff)/ff;if(diff<bd){bd=diff;best=nm;}}return bd<0.09?best:null;}
+let curEx=0,exActive=false,exACtx=null,exStream=null,exAn=null,exCur=0,exRes=[],exAId=null,holdC=0,lastDet=null;
+let metroActive=false,metroBPM=60,metroId=null,metroBeat=0;
+function selEx(idx,btn){document.querySelectorAll('.tab-it').forEach(b=>b.classList.remove('active'));btn.classList.add('active');curEx=idx;resetEx();}
+function renderExPage(){const ex=EXERCISES[curEx];document.getElementById('exTitle').textContent=ex.title;document.getElementById('exDesc').textContent=ex.desc;const ne=document.getElementById('exNotes');ne.innerHTML='';
+  ex.notes.forEach((n,i)=>{const c=document.createElement('div');c.className='note-chip'+(i===exCur?' current':'')+(exRes[i]==='correct'?' correct':exRes[i]==='wrong'?' wrong':'');c.textContent=n.note;c.id='nc'+i;ne.appendChild(c);});
+  const cur=ex.notes[Math.min(exCur,ex.notes.length-1)];buildFB(document.getElementById('exFB'),[{string:cur.str,fret:cur.fret,finger:cur.finger,label:cur.note}],5,0);}
+function updateExChips(){const ex=EXERCISES[curEx];ex.notes.forEach((n,i)=>{const el=document.getElementById('nc'+i);if(!el)return;el.className='note-chip'+(i===exCur?' current':'')+(exRes[i]==='correct'?' correct':exRes[i]==='wrong'?' wrong':'');});const cur=ex.notes[Math.min(exCur,ex.notes.length-1)];buildFB(document.getElementById('exFB'),[{string:cur.str,fret:cur.fret,finger:cur.finger,label:cur.note}],5,0);}
+function playClick(ok){const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=ok?880:220;o.type=ok?'sine':'square';g.gain.setValueAtTime(0.18,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);o.start();o.stop(ctx.currentTime+0.12);}
+async function toggleExercise(){
+  if(!exActive){try{const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false}});exStream=stream;exACtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:44100});exAn=exACtx.createAnalyser();exAn.fftSize=8192;exACtx.createMediaStreamSource(stream).connect(exAn);exActive=true;exCur=0;exRes=[];holdC=0;lastDet=null;document.getElementById('exBtn').textContent='⏹ Arrêter';document.getElementById('exScoreBox').style.display='none';updateExChips();exLoop();}catch(e){alert('Micro non disponible.');}}
+  else stopEx();
+}
+function exLoop(){if(!exActive)return;const ex=EXERCISES[curEx];const buf=new Float32Array(exAn.fftSize);exAn.getFloatTimeDomainData(buf);const freq=yinP(buf,exACtx.sampleRate);
+  if(freq>55&&freq<1200){const det=noteFromFreq(freq);const target=ex.notes[exCur].note;if(det===target){holdC++;if(holdC>5){exRes[exCur]='correct';playClick(true);exCur++;holdC=0;lastDet=null;updateExChips();if(exCur>=ex.notes.length){stopEx();showExScore();return;}}}else{if(det!==lastDet)holdC=0;lastDet=det;}}else holdC=0;
+  exAId=requestAnimationFrame(exLoop);}
+function stopEx(){exActive=false;if(exAId)cancelAnimationFrame(exAId);if(exStream)exStream.getTracks().forEach(t=>t.stop());if(exACtx)exACtx.close();document.getElementById('exBtn').textContent='🎤 Commencer';}
+function showExScore(){const ex=EXERCISES[curEx],ok=exRes.filter(r=>r==='correct').length,pct=Math.round(ok/ex.notes.length*100),xpE=Math.round(pct/100*50);document.getElementById('exScoreBox').style.display='block';document.getElementById('scoreTxt').textContent=pct+'%';document.getElementById('scoreArc').style.strokeDashoffset=264-(264*pct/100);const msgs=['Continuez !','Bon début !','Pas mal !','Bien !','Très bien !','Parfait ! 🎉'];document.getElementById('scoreFB').textContent=msgs[Math.min(Math.floor(pct/20),5)];document.getElementById('scoreXPGain').textContent=`+${xpE} XP`;if(!S.bestScore||pct>parseInt(S.bestScore)){S.bestScore=pct;save();}if(pct===100)earnBadge('perfect_score');addXP(xpE);}
+function resetEx(){stopEx();exCur=0;exRes=[];holdC=0;lastDet=null;document.getElementById('exScoreBox').style.display='none';renderExPage();}
+function toggleMetro(){if(!metroActive){metroActive=true;metroBeat=0;document.getElementById('metroBtn').textContent='⏹ Arrêter';const iv=60000/metroBPM;metroId=setInterval(()=>{[1,2,3,4].forEach((_,i)=>document.getElementById('b'+(i+1)).classList.toggle('on',i===metroBeat%4));const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=metroBeat%4===0?1100:880;o.type='sine';g.gain.setValueAtTime(metroBeat%4===0?.3:.18,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+.05);o.start();o.stop(ctx.currentTime+.06);metroBeat++;},iv);}else{metroActive=false;clearInterval(metroId);document.getElementById('metroBtn').textContent='▶ Démarrer';[1,2,3,4].forEach((_,i)=>document.getElementById('b'+(i+1)).classList.remove('on'));}}
+function chBPM(d){if(metroActive){clearInterval(metroId);metroActive=false;document.getElementById('metroBtn').textContent='▶ Démarrer';}metroBPM=Math.max(30,Math.min(240,metroBPM+d));document.getElementById('bpmDisp').textContent=metroBPM;}
+
+// ══════════════════════════════════════════════════
+// BIBLIOTHÈQUE — DONNÉES COMPLÈTES
+// ══════════════════════════════════════════════════
+const ARTISTS=[
+  {id:'acdc',name:'AC/DC',icon:'⚡',sub:'Rock Australien',color:'#e74c3c',badge:'acdc_fan'},
+  {id:'metallica',name:'Metallica',icon:'🤘',sub:'Heavy Metal',color:'#7f8c8d',badge:'metal_fan'},
+  {id:'francais',name:'Chanson FR',icon:'🇫🇷',sub:'Luiza · Tété · Classiques',color:'#3498db',badge:'chanson_fr'},
+  {id:'classique',name:'Classique',icon:'🎻',sub:'Répertoire universel',color:'#9b59b6',badge:null},
+  {id:'world',name:'Incontournables',icon:'🌍',sub:'Pop · Folk · Traditionnel',color:'#e67e22',badge:null},
+];
+
+// Définition des accords visuels
+const CHORD_DEFS={
+  'E':   {name:'E',  strings:['x',0,2,2,1,0]},
+  'Em':  {name:'Em', strings:['x',0,2,2,0,0]},
+  'A':   {name:'A',  strings:['x',0,2,2,2,0]},
+  'Am':  {name:'Am', strings:['x',0,2,2,1,0]},
+  'D':   {name:'D',  strings:['x','x',0,2,3,2]},
+  'Dm':  {name:'Dm', strings:['x','x',0,2,3,1]},
+  'G':   {name:'G',  strings:[3,2,0,0,0,3]},
+  'C':   {name:'C',  strings:['x',3,2,0,1,0]},
+  'B7':  {name:'B7', strings:['x',2,1,2,0,2]},
+  'F':   {name:'F',  strings:[1,1,2,3,3,1],barre:{from:0,to:5,fret:1}},
+  'B':   {name:'B',  strings:['x',2,4,4,4,2],barre:{from:1,to:5,fret:2}},
+  'A5':  {name:'A5', strings:['x',0,2,2,'x','x']},
+  'E5':  {name:'E5', strings:[0,2,2,'x','x','x']},
+  'G5':  {name:'G5', strings:[3,5,5,'x','x','x']},
+  'D5':  {name:'D5', strings:['x','x',0,2,3,'x']},
+};
+
+const PIECES=[
+  // ── AC/DC ──
+  {id:'acdc1',artist:'acdc',title:'Back in Black',composer:'AC/DC (1980)',level:'debutant',diff:2,tag:'Riff iconique',bpm:96,
+   desc:'L\'un des riffs les plus reconnaissables du rock. Version acoustique simplifiée avec les power chords caractéristiques.',
+   chords:['E5','A5','D5','G5'],
+   lyrics:`[Intro — Riff principal]
+<span class="chord-inline">E5</span>  <span class="chord-inline">A5</span>  <span class="chord-inline">G5</span>  <span class="chord-inline">D5</span>
+
+[Couplet]
+<span class="chord-inline">E5</span>Back in black, I hit the sack
+<span class="chord-inline">A5</span>I've been too long, I'm glad to be back
+<span class="chord-inline">E5</span>Yes I'm let loose from the noose
+<span class="chord-inline">D5</span>That's kept me hanging about
+
+[Refrain]
+<span class="chord-inline">A5</span>  <span class="chord-inline">E5</span>  <span class="chord-inline">B5</span>  <span class="chord-inline">A5</span>  <span class="chord-inline">E5</span>
+<span class="chord-inline">G5</span>  <span class="chord-inline">D5</span>  <span class="chord-inline">A5</span>  (retour couplet)`,
+   tab:`e|-------------------0-0-0-0-|
+B|-------------------2-2-2-2-|
+G|-------------------2-2-2-2-|
+D|---2-2-2-2---------2-2-2-2-|  E5
+A|---2-2-2-2-0-0-0-0-0-0-0-0-|
+E|---0-0-0-0-----------------|
+    E5         A5         E5
+
+e|---3-3-3-3-2-2-2-2---------|
+B|---5-5-5-5-3-3-3-3---------|
+G|---5-5-5-5-2-2-2-2---------|
+D|---5-5-5-5-0-0-0-0---------|  G5 → D
+A|---3-3-3-3-----------------|
+E|---------------------------|
+    G5         D`,
+   fingers:[{string:6,fret:0,finger:0,label:'Mi'},{string:5,fret:2,finger:2,label:'La'},{string:4,fret:2,finger:2},{string:3,fret:1,finger:1}]},
+
+  {id:'acdc2',artist:'acdc',title:'Highway to Hell',composer:'AC/DC (1979)',level:'debutant',diff:2,tag:'Hit mondial',bpm:116,
+   desc:'3 accords suffisent ! A, D et G font toute la magie. Le riff d\'intro est joué avec des power chords.',
+   chords:['A','D','G','Em'],
+   lyrics:`[Intro]
+<span class="chord-inline">A</span>  <span class="chord-inline">D/F#</span>  <span class="chord-inline">G</span>  <span class="chord-inline">D/F#</span>  (x4)
+
+[Couplet]
+<span class="chord-inline">A</span>Living easy, living free
+<span class="chord-inline">D</span>Season ticket on a one-way ride
+<span class="chord-inline">A</span>Asking nothing, leave me be
+<span class="chord-inline">D</span>Taking everything in my stride
+
+[Pré-refrain]
+<span class="chord-inline">A</span>Don't need reason, don't need rhyme
+<span class="chord-inline">D</span>Ain't nothing I would rather do
+<span class="chord-inline">A</span>Going down, party time
+<span class="chord-inline">D</span>My friends are gonna be there too
+
+[Refrain]
+<span class="chord-inline">A</span>  <span class="chord-inline">D</span>  <span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">A</span>
+I'm on the highway to hell !`,
+   tab:`e|---2-2-2-2-3-3-3-3-2-2-2-2-3-3-3-3-|
+B|---2-2-2-2-3-3-3-3-3-3-3-3-3-3-3-3-|
+G|---2-2-2-2-0-0-0-0-2-2-2-2-0-0-0-0-|
+D|---2-2-2-2-0-0-0-0-0-0-0-0-0-0-0-0-|
+A|---0-0-0-0-2-2-2-2-0-0-0-0-2-2-2-2-|
+E|---0-0-0-0-3-3-3-3-----------3-3-3-3|
+    A          G          D        G`,
+   fingers:[{string:5,fret:0,finger:0,label:'La'},{string:4,fret:2,finger:2},{string:3,fret:2,finger:3},{string:2,fret:2,finger:4},{string:1,fret:0,finger:0}]},
+
+  {id:'acdc3',artist:'acdc',title:'Thunderstruck',composer:'AC/DC (1990)',level:'intermediaire',diff:3,tag:'Légendaire',bpm:134,
+   desc:'L\'intro en picking rapide sur Si est la signature d\'Angus Young. Version simplifiée en finger picking.',
+   chords:['B','A','E','D'],
+   lyrics:`[Intro — picking sur Si]
+<span class="chord-inline">B</span> (cordes ouvertes, picking rapide)
+
+[Couplet]
+<span class="chord-inline">A</span>I was caught in the middle of a railroad track
+<span class="chord-inline">E</span>I looked round and I knew there was no turning back
+<span class="chord-inline">A</span>My mind raced and I thought what could I do
+<span class="chord-inline">E</span>And I knew there was no help, no help from you
+
+[Refrain]
+<span class="chord-inline">A</span>  <span class="chord-inline">E</span>  <span class="chord-inline">B</span>
+Thunder !  You've been thunderstruck !`,
+   tab:`[Intro picking — répétez 8x]
+e|--------------------------------------|
+B|---0---0---0---0---0---0---0---0------|
+G|------------------------------------2-|
+D|--2---2---2---2---0---0---0---0---2---|
+A|---------------------------------0----|
+E|--------------------------------------|
+   (picking rapide sur corde 2 ouverte)`,
+   fingers:[{string:2,fret:0,finger:0,label:'Si'},{string:4,fret:2,finger:2,label:'Ré'},{string:5,fret:0,finger:0,label:'La'}]},
+
+  {id:'acdc4',artist:'acdc',title:'You Shook Me All Night Long',composer:'AC/DC (1980)',level:'debutant',diff:2,tag:'Rock classique',bpm:126,
+   desc:'Progression G–D–C facile à mémoriser. Un des plus faciles à jouer en acoustique.',
+   chords:['G','D','C','Em'],
+   lyrics:`[Couplet]
+<span class="chord-inline">G</span>She was a fast machine she kept her motor clean
+<span class="chord-inline">D</span>She was the best damn woman I had ever seen
+<span class="chord-inline">G</span>She had the sightless eyes telling me no lies
+<span class="chord-inline">C</span>Knocking me out with those American thighs
+
+[Refrain]
+<span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">C</span>  (x2)
+You shook me all night long
+<span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">G</span>
+Yeah, you shook me all night long`,
+   tab:`e|---3-3-2-2-0-0-0-0-3-3-2-2----|
+B|---3-3-3-3-1-1-1-1-0-0-3-3----|
+G|---0-0-2-2-0-0-0-0-0-0-2-2----|
+D|---0-0-0-0-2-2-2-2-0-0-0-0----|
+A|---2-2-0-0-3-3-3-3-2-2-0-0----|
+E|---3-3-----------3-3----------|
+    G    D    C              G`,
+   fingers:[{string:6,fret:3,finger:3,label:'Sol'},{string:5,fret:2,finger:2},{string:4,fret:0,finger:0},{string:1,fret:3,finger:4}]},
+
+  {id:'acdc5',artist:'acdc',title:'T.N.T.',composer:'AC/DC (1975)',level:'debutant',diff:1,tag:'Punchy',bpm:120,
+   desc:'Riff simple et efficace en La. Parfait pour comprendre les power chords et le rythme rock.',
+   chords:['A5','D5','E5','G5'],
+   lyrics:`[Riff intro]
+<span class="chord-inline">A5</span> (frappe percussive) — 4x
+
+[Couplet]
+<span class="chord-inline">A5</span>Oi! Oi! Oi!
+<span class="chord-inline">A5</span>See me ride out of the sunset
+<span class="chord-inline">D5</span>On your colour TV screen
+<span class="chord-inline">A5</span>Out for all that I can get
+<span class="chord-inline">E5</span>If you know what I mean
+
+[Refrain]
+<span class="chord-inline">A5</span>  <span class="chord-inline">D5</span>  <span class="chord-inline">E5</span>  <span class="chord-inline">A5</span>
+T.N.T. — I'm dynamite !`,
+   tab:`e|---0-0-0-0-0-0-0-0-|
+B|---2-2-2-2-3-3-3-3-|
+G|---2-2-2-2-2-2-2-2-|
+D|---2-2-2-2-0-0-0-0-|
+A|---0-0-0-0---------|
+E|-------------------|
+    A          D (riff)`,
+   fingers:[{string:5,fret:0,finger:0,label:'La'},{string:4,fret:2,finger:2},{string:3,fret:2,finger:3},{string:2,fret:2,finger:4}]},
+
+  // ── METALLICA ──
+  {id:'meta1',artist:'metallica',title:'Nothing Else Matters',composer:'Metallica (1991)',level:'intermediaire',diff:3,tag:'Ballade',bpm:69,
+   desc:'La plus belle ballade de Metallica. Intro en arpège sur Em — Hetfield la jouait spontanément au téléphone.',
+   chords:['Em','D','C','G','B7','Am'],
+   lyrics:`[Intro — arpège]
+<span class="chord-inline">Em</span> (arpège : 0-0-0-0 sur cordes 6-3-2-1)
+
+[Couplet]
+<span class="chord-inline">Em</span>  <span class="chord-inline">D</span>  <span class="chord-inline">C</span>
+So close, no matter how far
+<span class="chord-inline">Em</span>  <span class="chord-inline">D</span>  <span class="chord-inline">C</span>
+Couldn't be much more from the heart
+<span class="chord-inline">Em</span>  <span class="chord-inline">D</span>  <span class="chord-inline">C</span>
+Forever trusting who we are
+<span class="chord-inline">G</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">Em</span>
+And nothing else matters
+
+[Refrain]
+<span class="chord-inline">C</span>  <span class="chord-inline">Am</span>  <span class="chord-inline">D</span>
+Never cared for what they do
+<span class="chord-inline">C</span>  <span class="chord-inline">Am</span>  <span class="chord-inline">D</span>  <span class="chord-inline">Em</span>
+Never cared for what they know — but I know`,
+   tab:`[Intro — arpège Em]
+e|-------0-----|-------0-----|-------0-----|
+B|-----0---0---|-----0---0---|-----0---0---|
+G|---0-------0-|---0-------0-|---0-------0-|
+D|-------------|-------------|-------------|
+A|-------------|-------------|-------------|
+E|-0-----------|-0-----------|-0-----------|
+  Em               Em               Em
+
+[Couplet — accords]
+e|---0---2---0---|
+B|---0---3---1---|
+G|---0---2---0---|  Em  D  C
+D|---2---0---2---|
+A|---2---0---3---|
+E|---0---x---x---|`,
+   fingers:[{string:6,fret:0,finger:0,label:'Mi'},{string:3,fret:0,finger:0,label:'Sol'},{string:2,fret:0,finger:0,label:'Si'},{string:1,fret:0,finger:0,label:'Mi'}],
+   notes:[{n:'Mi',s:6,f:0},{n:'Mi',s:1,f:0},{n:'Si',s:2,f:0},{n:'Sol',s:3,f:0},{n:'Mi',s:1,f:0},{n:'Si',s:2,f:0}]},
+
+  {id:'meta2',artist:'metallica',title:'Enter Sandman',composer:'Metallica (1991)',level:'intermediaire',diff:3,tag:'Riff culte',bpm:123,
+   desc:'Le riff le plus joué de Metallica. En Mi, avec un pattern PM (palm mute) caractéristique, adapté en acoustique.',
+   chords:['Em','F','G','B'],
+   lyrics:`[Riff intro — 6x]
+<span class="chord-inline">Em</span> (palm mute — étouffement de paume)
+
+[Couplet]
+<span class="chord-inline">Em</span>Say your prayers, little one
+<span class="chord-inline">F</span>Don't forget, my son
+<span class="chord-inline">G</span>To include everyone
+<span class="chord-inline">F</span>  <span class="chord-inline">Em</span>
+
+[Refrain]
+<span class="chord-inline">Em</span>  <span class="chord-inline">G</span>  <span class="chord-inline">F#</span>  <span class="chord-inline">G</span>  <span class="chord-inline">F#</span>
+Exit — light. Enter — night.
+<span class="chord-inline">Em</span>  <span class="chord-inline">G</span>  <span class="chord-inline">F#</span>
+Take my hand — off to never never land`,
+   tab:`[Riff principal]
+e|--------------------------------------|
+B|--------------------------------------|
+G|--------------------------------------|
+D|--------------------------------------|
+A|--2--2--2--2--2--2--7--7-----------5--|
+E|--0--0--0--0--0--0--5--5--6--5--0--3--|
+   E5 (PM)            G5  F#5     E5
+
+[Variation]
+e|---0---1---3---1---0---|
+B|---0---1---0---1---0---|  (mélodie seule)
+G|---0---2---0---2---0---|
+D|---2---3---0---3---2---|
+A|---2---3---2---3---2---|
+E|---0---1---3---1---0---|
+    Em  F   G   F   Em`,
+   fingers:[{string:6,fret:0,finger:0,label:'Mi'},{string:5,fret:2,finger:2,label:'Si'},{string:4,fret:2,finger:3}]},
+
+  {id:'meta3',artist:'metallica',title:'Fade to Black',composer:'Metallica (1984)',level:'avance',diff:4,tag:'Ballade épique',bpm:108,
+   desc:'Ballade progressive commençant en arpège doux et montant en puissance. Intro en La mineur absolument magnifique.',
+   chords:['Am','C','G','Em','D'],
+   lyrics:`[Intro — arpège Am]
+<span class="chord-inline">Am</span>  <span class="chord-inline">C</span>  <span class="chord-inline">G</span>  <span class="chord-inline">Em</span>  (x2)
+
+[Couplet]
+<span class="chord-inline">Am</span>Life, it seems, will fade away
+<span class="chord-inline">C</span>Drifting further every day
+<span class="chord-inline">G</span>Getting lost within myself
+<span class="chord-inline">Em</span>Nothing matters, no one else
+
+[Bridge]
+<span class="chord-inline">Am</span>I have lost the will to live
+<span class="chord-inline">G</span>Simply nothing more to give
+<span class="chord-inline">D</span>There is nothing more for me
+<span class="chord-inline">Em</span>Need the end to set me free`,
+   tab:`[Intro — arpège Am]
+e|---0---1---0---0---0---3---0---0---|
+B|---1---1---1---1---1---0---0---0---|
+G|---2---2---0---0---2---0---0---0---|  Am C G Em
+D|---2---3---0---2---2---0---2---2---|
+A|---0---3---2---2---0---2---2---2---|
+E|---x---x---3---0---x---3---0---0---|`,
+   fingers:[{string:5,fret:0,finger:0,label:'La'},{string:4,fret:2,finger:2},{string:3,fret:2,finger:3},{string:2,fret:1,finger:1}]},
+
+  {id:'meta4',artist:'metallica',title:'The Unforgiven',composer:'Metallica (1991)',level:'intermediaire',diff:3,tag:'Ballade',bpm:76,
+   desc:'Ballade mélancolique avec une intro au picking sur Am. Très accessible en acoustique.',
+   chords:['Am','F','C','G','Em'],
+   lyrics:`[Intro]
+<span class="chord-inline">Am</span> (picking lent)
+
+[Couplet]
+<span class="chord-inline">Am</span>New blood joins this earth
+<span class="chord-inline">F</span>And quickly he's subdued
+<span class="chord-inline">C</span>Through constant pained disgrace
+<span class="chord-inline">G</span>The young boy learns their rules
+
+[Refrain]
+<span class="chord-inline">Am</span>  <span class="chord-inline">F</span>  <span class="chord-inline">C</span>  <span class="chord-inline">G</span>
+What I've felt, what I've known
+<span class="chord-inline">Am</span>  <span class="chord-inline">F</span>  <span class="chord-inline">Em</span>
+Never shined through in what I've shown`,
+   tab:`[Intro picking]
+e|---0---0---0---0---0---0---0---0---|
+B|---1---1---1---1---1---1---1---1---|
+G|---2---2---0---0---0---0---2---2---|
+D|---2---2---2---2---0---0---2---2---|
+A|---0---0---3---3---2---2---0---0---|
+E|---x---x---x---x---3---3---x---x---|
+    Am      F       C       Am`,
+   fingers:[{string:5,fret:0,finger:0,label:'La'},{string:4,fret:2,finger:2},{string:3,fret:2,finger:3},{string:2,fret:1,finger:1}]},
+
+  {id:'meta5',artist:'metallica',title:'Master of Puppets',composer:'Metallica (1986)',level:'avance',diff:5,tag:'Thrash',bpm:212,
+   desc:'Chef-d\'œuvre du thrash metal. Version acoustique lente pour travailler la progression Em–F–Em caractéristique.',
+   chords:['Em','F','E5','Am','B'],
+   lyrics:`[Intro — riff principal]
+<span class="chord-inline">Em</span> → <span class="chord-inline">F</span> → <span class="chord-inline">Em</span> (rapide en original, lent en acoustique)
+
+[Couplet]
+<span class="chord-inline">Em</span>End of passion play, crumbling away
+<span class="chord-inline">F</span>I'm your source of self destruction
+<span class="chord-inline">Em</span>Veins that pump with fear, sucking darkness clear
+<span class="chord-inline">F</span>  <span class="chord-inline">Em</span>
+Leading on your death's construction
+
+[Refrain]
+<span class="chord-inline">Am</span>  <span class="chord-inline">Em</span>  <span class="chord-inline">B</span>  <span class="chord-inline">Em</span>
+Master ! Master !`,
+   tab:`[Riff principal — version acoustique lente]
+e|---0---1---0---1---0---1---0---|
+B|---0---1---0---1---0---1---0---|
+G|---0---2---0---2---0---2---0---|
+D|---2---3---2---3---2---3---2---|
+A|---2---3---2---3---2---3---2---|
+E|---0---1---0---1---0---1---0---|
+    Em  F   Em  F   Em  F   Em`,
+   fingers:[{string:6,fret:0,finger:0,label:'Mi'},{string:5,fret:2,finger:2},{string:4,fret:2,finger:3},{string:2,fret:0,finger:0}]},
+
+  {id:'meta6',artist:'metallica',title:'Sad but True',composer:'Metallica (1991)',level:'intermediaire',diff:3,tag:'Lourd',bpm:96,
+   desc:'Riff puissant en Mi avec un groove massif. En acoustique, 3 accords suffisent.',
+   chords:['Em','D','C','B'],
+   lyrics:`[Riff intro]
+<span class="chord-inline">Em</span> (grave, lent)
+
+[Couplet]
+<span class="chord-inline">Em</span>Hey I'm your life
+<span class="chord-inline">D</span>I'm the one who takes you there
+<span class="chord-inline">Em</span>Hey I'm your life
+<span class="chord-inline">C</span>I'm the one who cares
+
+[Refrain]
+<span class="chord-inline">Em</span>  <span class="chord-inline">D</span>  <span class="chord-inline">C</span>  <span class="chord-inline">B</span>
+Sad but true`,
+   tab:`e|---0---2---0---2---0---0---|
+B|---0---3---1---3---0---0---|
+G|---0---2---0---2---0---0---|
+D|---2---0---2---0---2---1---|
+A|---2---x---3---x---2---2---|
+E|---0---x---x---x---0---2---|
+    Em  D   C   D   Em  B`,
+   fingers:[{string:6,fret:0,finger:0,label:'Mi'},{string:5,fret:2,finger:2},{string:4,fret:2,finger:3},{string:2,fret:0,finger:0}]},
+
+  // ── CHANSON FRANÇAISE ──
+  {id:'fr1',artist:'francais',title:'Soleil Bleu',composer:'Luiza (2024)',level:'debutant',diff:1,tag:'Chanson',bpm:100,
+   desc:'Le tube de Luiza — 4 accords faciles Am, C, Em, Dm. Idéal pour accompagner en chantant.',
+   chords:['Am','C','Em','Dm'],
+   lyrics:`[Refrain]
+<span class="chord-inline">Am</span>  <span class="chord-inline">C</span>
+Oh, laissez-moi vivre comme je veux
+<span class="chord-inline">Em</span>  <span class="chord-inline">Am</span>
+Les pieds dans l'eau et la tête en feu
+<span class="chord-inline">Am</span>  <span class="chord-inline">Dm</span>  <span class="chord-inline">Em</span>
+<span class="chord-inline">Am</span>  <span class="chord-inline">C</span>
+Oh, laissez-moi vivre comme je veux
+<span class="chord-inline">Em</span>  <span class="chord-inline">Am</span>
+Sous les nuages, sous mon soleil bleu
+<span class="chord-inline">Am</span>  <span class="chord-inline">Dm</span>  <span class="chord-inline">Em</span>
+
+[Couplet]
+<span class="chord-inline">Am</span>Laisse-moi m'envoler, toucher les étoiles
+<span class="chord-inline">C</span>  <span class="chord-inline">Em</span>
+Frôler les nuages, défier mon histoire
+<span class="chord-inline">Am</span>Laisse-moi m'égarer
+<span class="chord-inline">Dm</span>Là où plus rien n'est égal même dans le noir
+<span class="chord-inline">Em</span>Je veux sentir la terre, la douceur minérale
+<span class="chord-inline">Am</span>Laisse-moi partir même sans bagages
+<span class="chord-inline">C</span>  <span class="chord-inline">Em</span>
+Je veux embrasser le monde, le prendre dans mes mains
+<span class="chord-inline">Am</span>La route est longue et les rêves sont grands
+<span class="chord-inline">Dm</span>J'veux marcher sans fin, je veux fendre l'horizon
+<span class="chord-inline">Em</span>  <span class="chord-inline">Am</span>
+J'entends les montagnes et les étoiles m'attendent`,
+   tab:`[Rythme refrain]
+Am ↓ ↑ ↑  C ↓ ↑  Em ↓ ↑  Am ↓ ↑
+
+e|---0---0---0---3---0---0---0---|
+B|---1---1---1---1---0---0---1---|
+G|---2---2---0---0---0---0---2---|  Am C Em Am
+D|---2---2---2---2---2---2---2---|
+A|---0---0---3---3---2---2---0---|
+E|---x---x---x---x---0---0---x---|`,
+   fingers:[{string:5,fret:0,finger:0,label:'La'},{string:4,fret:2,finger:2},{string:3,fret:2,finger:3},{string:2,fret:1,finger:1}]},
+
+  {id:'fr2',artist:'francais',title:'À la faveur de l\'automne',composer:'Tété (2004)',level:'intermediaire',diff:3,tag:'Intemporel',bpm:90,
+   desc:'Bijou de la chanson française. Progression Em–B7–G–Am–C pleine de mélancolie douce.',
+   chords:['Em','B7','G','Am','C'],
+   lyrics:`[Intro]
+<span class="chord-inline">Em</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">G</span>  <span class="chord-inline">Am</span>  <span class="chord-inline">C</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">Em</span>
+
+[Couplet 1]
+<span class="chord-inline">Em</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">G</span>  <span class="chord-inline">Am</span>
+Posté devant la fenêtre je guette les âmes esseulées
+<span class="chord-inline">C</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">Em</span>
+À la faveur de l'automne
+<span class="chord-inline">Em</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">G</span>  <span class="chord-inline">Am</span>
+Posté devant la fenêtre je regrette de n'y avoir songé
+<span class="chord-inline">C</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">Em</span>
+Maintenant que tu abandonnes
+
+[Refrain]
+<span class="chord-inline">C</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">Am</span>
+À la faveur de l'automne revient cette douce mélancolie
+<span class="chord-inline">C</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">Am</span>
+1, 2, 3, 4, un peu comme on fredonne de vieilles mélodies
+<span class="chord-inline">C</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">Am</span>
+À la faveur de l'automne tu redonnes à ma mélancolie
+<span class="chord-inline">C</span>  <span class="chord-inline">B7</span>  <span class="chord-inline">Am</span>
+Ses couleurs de super scopitone — oh oh oh`,
+   tab:`[Intro / Couplet]
+e|---0---2---3---0---0---2---0---|
+B|---0---0---0---1---1---0---0---|
+G|---0---2---0---2---0---2---0---|  Em B7 G Am C B7 Em
+D|---2---1---0---2---2---1---2---|
+A|---2---2---2---0---3---2---2---|
+E|---0---x---3---x---x---x---0---|`,
+   fingers:[{string:6,fret:0,finger:0,label:'Mi'},{string:4,fret:2,finger:2,label:'Ré'},{string:3,fret:0,finger:0,label:'Sol'},{string:2,fret:0,finger:0,label:'Si'}]},
+
+  {id:'fr3',artist:'francais',title:'Joyeux Anniversaire',composer:'Traditionnel',level:'debutant',diff:1,tag:'Incontournable',bpm:80,
+   desc:'La chanson la plus jouée au monde ! Deux versions : mélodie seule et accords d\'accompagnement.',
+   chords:['G','D','C','A7'],
+   lyrics:`[Mélodie + Accords en G]
+<span class="chord-inline">G</span>Joyeux anni-<span class="chord-inline">D</span>versaire
+<span class="chord-inline">D</span>Joyeux anni-<span class="chord-inline">G</span>versaire
+<span class="chord-inline">G</span>Joyeux anni-<span class="chord-inline">C</span>versaire (prénom)
+<span class="chord-inline">D</span>Joyeux anni-<span class="chord-inline">G</span>versaire !`,
+   tab:`[Mélodie seule en Sol]
+e|---3---3---5---3---8---7---|
+B|---0---0---0---0---0---0---|
+G|---0---0---0---0---0---0---|
+D|---0---0---0---0---0---0---|
+A|---2---2---2---2---2---2---|  G (pédale)
+E|---3---3---3---3---3---3---|
+Joi-yeux an-ni-ver-sai-re
+
+e|---3---3---5---3---10--8---|
+B|---0---0---0---0---0---0---|  Joyeux anniversaire (x2)
+G|---0---0---0---0---0---0---|  (couplet 2)
+D|---0---0---0---0---0---0---|
+A|---2---2---2---2---2---2---|
+E|---3---3---3---3---3---3---|`,
+   fingers:[{string:6,fret:3,finger:3,label:'Sol'},{string:5,fret:2,finger:2},{string:1,fret:3,finger:4,label:'Ré'},{string:1,fret:5,finger:1,label:'Mi'}]},
+
+  {id:'fr4',artist:'francais',title:'La Vie en Rose',composer:'Édith Piaf (1945)',level:'intermediaire',diff:2,tag:'Classique FR',bpm:88,
+   desc:'L\'hymne français par excellence. Valse chaleureuse en Sol, parfaite pour travailler le rythme 3/4.',
+   chords:['G','G7','C','Cm','D7','Am','Em'],
+   lyrics:`[Couplet]
+<span class="chord-inline">G</span>Des yeux qui font baisser les miens
+<span class="chord-inline">G7</span>Un rire qui se perd sur sa bouche
+<span class="chord-inline">C</span>Voilà le portrait sans retouche
+<span class="chord-inline">D7</span>De l'homme auquel j'appartiens
+
+[Refrain]
+<span class="chord-inline">G</span>Quand il me prend dans ses bras
+<span class="chord-inline">G7</span>Il me parle tout bas
+<span class="chord-inline">C</span>Je vois la vie en rose
+<span class="chord-inline">Cm</span>Il me dit des mots d'amour
+<span class="chord-inline">G</span>Des mots de tous les jours
+<span class="chord-inline">D7</span>Et ça m'fait quelque chose
+<span class="chord-inline">G</span>Il est entré dans mon cœur
+<span class="chord-inline">G7</span>Une part de bonheur
+<span class="chord-inline">C</span>Dont je connais la cause
+<span class="chord-inline">Am</span>  <span class="chord-inline">D7</span>  <span class="chord-inline">G</span>
+C'est lui pour moi, moi pour lui dans la vie`,
+   tab:`[Valse 3/4 — G]
+e|---3---3---3---3---2---0---|
+B|---3---0---1---0---0---0---|
+G|---0---0---0---0---2---0---|  G → G7 → C
+D|---0---0---2---0---0---2---|
+A|---2---2---3---2---x---2---|
+E|---3---3---x---3---x---0---|`,
+   fingers:[{string:6,fret:3,finger:3,label:'Sol'},{string:5,fret:2,finger:2},{string:4,fret:0,finger:0},{string:1,fret:3,finger:4}]},
+
+  // ── CLASSIQUE ──
+  {id:'clas1',artist:'classique',title:'Ode à la Joie',composer:'L. van Beethoven (1824)',level:'debutant',diff:1,tag:'Mélodie',bpm:72,
+   desc:'Le thème le plus célèbre de la musique classique. Mélodie en position ouverte, parfaite pour débuter.',
+   chords:['Em','D','C','G'],
+   lyrics:`[Mélodie + accords]
+<span class="chord-inline">Em</span>Mi Mi <span class="chord-inline">C</span>Fa Sol — <span class="chord-inline">G</span>Sol <span class="chord-inline">C</span>Fa <span class="chord-inline">Em</span>Mi
+<span class="chord-inline">D</span>Ré <span class="chord-inline">G</span>Ré <span class="chord-inline">D</span>Do Do <span class="chord-inline">Em</span>Ré`,
+   tab:`e|---0---0---1---3---3---1---0---3---|
+B|---1---1---1---0---0---1---1---0---|
+G|---2---2---2---0---0---2---2---0---|
+D|---2---2---2---0---0---2---2---0---|
+A|---0---0---x---x---x---x---0---2---|
+E|---x---x---x---x---x---x---x---3---|
+    Mi  Mi  Fa  Sol Sol Fa  Mi  Ré`,
+   fingers:[{string:1,fret:0,finger:0,label:'Mi'},{string:2,fret:1,finger:1,label:'Si'},{string:4,fret:2,finger:2,label:'Ré'},{string:5,fret:0,finger:0,label:'La'}]},
+
+  {id:'clas2',artist:'classique',title:'Romance',composer:'Anonyme Espagnol',level:'intermediaire',diff:3,tag:'Intemporel',bpm:88,
+   desc:'La pièce de guitare la plus jouée au monde. Arpège hypnotique sur Em et D.',
+   chords:['Em','D','Dm','G'],
+   tab:`e|---0-------0-------0-------0-------|
+B|---0-------0-------3-------3-------|
+G|---1-------1-------2-------2-------|
+D|---2-------2-------0-------0-------|
+A|---2-------2---x-------x-------x---|
+E|---0-------0---x-------x-------x---|
+    Em                  D`,
+   fingers:[{string:6,fret:0,finger:0,label:'Mi'},{string:5,fret:2,finger:2},{string:4,fret:2,finger:3},{string:3,fret:1,finger:1,label:'Sol#'},{string:2,fret:0,finger:0,label:'Si'},{string:1,fret:0,finger:0,label:'Mi'}]},
+
+  // ── INCONTOURNABLES ──
+  {id:'world1',artist:'world',title:'Knockin\' on Heaven\'s Door',composer:'Bob Dylan (1973)',level:'debutant',diff:1,tag:'Folk',bpm:72,
+   desc:'4 accords, chanson universelle. G – D – Am – C en boucle. Idéal pour débuter l\'accompagnement.',
+   chords:['G','D','Am','C'],
+   lyrics:`[Couplet & Refrain (même progression)]
+<span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">Am</span>
+Mama, take this badge off of me
+<span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">C</span>
+I can't use it anymore
+<span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">Am</span>
+It's gettin' dark, too dark to see
+<span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">C</span>
+I feel I'm knockin' on heaven's door
+
+<span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">Am</span>
+Knock knock knockin' on heaven's door
+<span class="chord-inline">G</span>  <span class="chord-inline">D</span>  <span class="chord-inline">C</span>
+Knock knock knockin' on heaven's door`,
+   tab:`e|---3---2---0---0---|
+B|---3---3---1---1---|
+G|---0---2---2---0---|  G D Am C
+D|---0---0---2---2---|
+A|---2---0---0---3---|
+E|---3---x---x---x---|`,
+   fingers:[{string:6,fret:3,finger:3,label:'Sol'},{string:5,fret:2,finger:2},{string:4,fret:0,finger:0},{string:1,fret:3,finger:4}]},
+
+  {id:'world2',artist:'world',title:'Hallelujah',composer:'Leonard Cohen (1984)',level:'intermediaire',diff:2,tag:'Intemporel',bpm:64,
+   desc:'L\'une des chansons les plus reprises. Valse en C majeur avec des accords intermédiaires.',
+   chords:['C','Am','F','G','E'],
+   lyrics:`[Couplet]
+<span class="chord-inline">C</span>  <span class="chord-inline">Am</span>
+I've heard there was a secret chord
+<span class="chord-inline">C</span>  <span class="chord-inline">Am</span>
+That David played and it pleased the Lord
+<span class="chord-inline">F</span>  <span class="chord-inline">G</span>  <span class="chord-inline">C</span>  <span class="chord-inline">G</span>
+But you don't really care for music, do you?
+
+[Refrain]
+<span class="chord-inline">F</span>  <span class="chord-inline">Am</span>
+It goes like this, the fourth, the fifth
+<span class="chord-inline">F</span>  <span class="chord-inline">Am</span>
+The minor fall and the major lift
+<span class="chord-inline">G</span>  <span class="chord-inline">E</span>  <span class="chord-inline">Am</span>
+The baffled king composing Hallelujah
+<span class="chord-inline">F</span>  <span class="chord-inline">Am</span>  <span class="chord-inline">F</span>  <span class="chord-inline">C</span>  <span class="chord-inline">G</span>  <span class="chord-inline">C</span>
+Hallelujah — Hallelujah — Hallelujah — Halle-lujah`,
+   tab:`e|---0---0---1---3---0---2---0---|
+B|---1---1---1---1---0---3---1---|
+G|---0---2---2---0---0---2---0---|  C Am F G Em Am C
+D|---2---2---3---0---2---2---2---|
+A|---3---0---3---2---2---0---3---|
+E|---x---x---1---3---0---x---x---|`,
+   fingers:[{string:5,fret:3,finger:3,label:'Do'},{string:4,fret:2,finger:2},{string:3,fret:0,finger:0},{string:2,fret:1,finger:1}]},
+];
+
+// ══════════════════════════════════════════════════
+// BIBLIOTHÈQUE — RENDU
+// ══════════════════════════════════════════════════
+let curFilter='all',curPieceId=null;
+let piecePlayActive=false,pieceBPM=80,pieceInt=null,pieceStep=0;
+let guidedActive=false,guidedListenActive=false,guidedStream=null,guidedACtx=null,guidedAn=null,guidedAnimId=null,guidedNoteIdx=0,guidedHold=0;
+
+function renderLibrary(){
+  document.getElementById('libListV').style.display='block';
+  document.getElementById('pieceViewer').classList.remove('active');
+  // Onglets artistes
+  const atEl=document.getElementById('artistTabs');atEl.innerHTML='';
+  const allBtn=document.createElement('button');allBtn.className='artist-tab all'+(curFilter==='all'?' active':'');allBtn.textContent='Tous';allBtn.onclick=()=>{curFilter='all';renderLibrary();};atEl.appendChild(allBtn);
+  const favBtn=document.createElement('button');favBtn.className='artist-tab'+(curFilter==='fav'?' active':'');favBtn.style.cssText='background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#e74c3c';favBtn.textContent='❤️ Favoris';favBtn.onclick=()=>{curFilter='fav';renderLibrary();};atEl.appendChild(favBtn);
+  ARTISTS.forEach(a=>{const btn=document.createElement('button');btn.className='artist-tab'+(curFilter===a.id?' active':'');btn.style.cssText=`background:rgba(${hexToRgb(a.color)},.12);border:1px solid rgba(${hexToRgb(a.color)},.3);color:${a.color}`;btn.innerHTML=`${a.icon} ${a.name}`;btn.onclick=()=>{curFilter=a.id;renderLibrary();};atEl.appendChild(btn);});
+  // Contenu
+  const content=document.getElementById('libContent');content.innerHTML='';
+  const search=document.getElementById('searchInput').value.toLowerCase();
+  if(curFilter==='all'||curFilter==='fav'){
+    const filtered=curFilter==='fav'?PIECES.filter(p=>S.favorites.includes(p.id)):PIECES;
+    const byArtist={};ARTISTS.forEach(a=>{byArtist[a.id]=[];});
+    filtered.filter(p=>!search||(p.title.toLowerCase().includes(search)||p.composer.toLowerCase().includes(search))).forEach(p=>{if(byArtist[p.artist])byArtist[p.artist].push(p);});
+    ARTISTS.forEach(a=>{if(!byArtist[a.id].length)return;const sec=document.createElement('div');sec.className='artist-section';
+      const hdr=document.createElement('div');hdr.className='artist-header';hdr.style.background=`rgba(${hexToRgb(a.color)},.08)`;
+      hdr.innerHTML=`<div class="artist-logo">${a.icon}</div><div><div class="artist-name" style="color:${a.color}">${a.name}</div><div class="artist-sub">${a.sub}</div></div>`;sec.appendChild(hdr);
+      const grid=document.createElement('div');grid.className='pieces-grid';
+      byArtist[a.id].forEach(p=>grid.appendChild(makePieceCard(p,a.color)));sec.appendChild(grid);content.appendChild(sec);});
+  } else {
+    const a=ARTISTS.find(x=>x.id===curFilter);const pieces=PIECES.filter(p=>p.artist===curFilter&&(!search||(p.title.toLowerCase().includes(search)||p.composer.toLowerCase().includes(search))));
+    const grid=document.createElement('div');grid.className='pieces-grid';pieces.forEach(p=>grid.appendChild(makePieceCard(p,a?a.color:'var(--gold)')));content.appendChild(grid);
+  }
+}
+function hexToRgb(hex){const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);return r?`${parseInt(r[1],16)},${parseInt(r[2],16)},${parseInt(r[3],16)}`:'201,146,58';}
+function makePieceCard(p,color){
+  const a=ARTISTS.find(x=>x.id===p.artist);const isFav=S.favorites.includes(p.id);
+  const d=document.createElement('div');d.className='piece-card';
+  const dots=Array(5).fill(0).map((_,i)=>`<div class="d-dot${i<p.diff?' on':''}"></div>`).join('');
+  d.innerHTML=`<div class="pc-artist-bar" style="background:${color||'var(--gold)'}"></div><div class="diff-dots">${dots}</div><div class="p-title">${p.title}</div><div class="p-comp">${p.composer}</div><div class="p-tag">${p.tag}</div><div class="p-fav${isFav?' on':''}" onclick="event.stopPropagation();toggleFav('${p.id}')">❤️</div><div class="p-level">${p.level}</div>`;
+  d.onclick=()=>openPiece(p.id);return d;
+}
+function filterSearch(){renderLibrary();}
+function toggleFav(id){if(S.favorites.includes(id))S.favorites=S.favorites.filter(x=>x!==id);else{S.favorites.push(id);earnBadge('fav_piece');}save();renderLibrary();}
+
+function openPiece(id){
+  curPieceId=id;const p=PIECES.find(x=>x.id===id);if(!p)return;
+  const a=ARTISTS.find(x=>x.id===p.artist);const aColor=a?a.color:'var(--gold)';
+  earnBadge('library_piece');
+  if(a&&a.badge)earnBadge(a.badge);
+  document.getElementById('libListV').style.display='none';document.getElementById('pieceViewer').classList.add('active');
+  document.getElementById('pvTitle').textContent=p.title;
+  // Info card
+  const isFav=S.favorites.includes(p.id);
+  document.getElementById('pvInfo').innerHTML=`<div style="height:4px;background:${aColor};border-radius:4px;margin-bottom:12px;opacity:.7"></div><div class="card-title" style="color:${aColor}">${a?a.icon:''} ${p.title} <span style="cursor:pointer;float:right" onclick="toggleFav('${p.id}')">${isFav?'❤️':'🤍'}</span></div><div style="font-size:.8rem;color:rgba(245,234,212,.4);font-style:italic;margin-bottom:7px">${p.composer}</div><p style="font-size:.86rem;color:rgba(245,234,212,.7);line-height:1.6">${p.desc}</p><div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap"><span style="font-size:.68rem;padding:2px 9px;border-radius:10px;background:rgba(${hexToRgb(aColor)},.12);color:${aColor}">${p.level}</span><span style="font-size:.68rem;padding:2px 9px;border-radius:10px;background:rgba(201,146,58,.08);color:var(--gold3)">🎵 ${p.bpm} BPM</span><span style="font-size:.68rem;padding:2px 9px;border-radius:10px;background:rgba(201,146,58,.08);color:var(--gold3)">${p.tag}</span></div>`;
+  // Accords
+  if(p.chords&&p.chords.length){document.getElementById('pvChordsCard').style.display='block';const cc=document.getElementById('pvChords');cc.innerHTML='';
+    p.chords.forEach(name=>{const def=CHORD_DEFS[name];if(!def)return;const wrap=document.createElement('div');wrap.className='chord-box';wrap.innerHTML=`<div class="chord-label">${name}</div>${chordSVG(def)}`;cc.appendChild(wrap);});}
+  else document.getElementById('pvChordsCard').style.display='none';
+  // Paroles
+  if(p.lyrics){document.getElementById('pvLyricsCard').style.display='block';document.getElementById('pvLyrics').innerHTML=p.lyrics;}
+  else document.getElementById('pvLyricsCard').style.display='none';
+  // Tablature
+  if(p.tab){document.getElementById('pvTabCard').style.display='block';document.getElementById('pvTab').textContent=p.tab;}
+  else document.getElementById('pvTabCard').style.display='none';
+  // Fretboard
+  buildFB(document.getElementById('pvFB'),p.fingers||[],7,0);
+  // Guided
+  if(p.notes&&p.notes.length){document.getElementById('pvGuidedCard').style.display='block';}
+  else document.getElementById('pvGuidedCard').style.display='none';
+  stopGuided();document.getElementById('gnNote').textContent='—';document.getElementById('gnInfo').textContent='Appuyez pour commencer';document.getElementById('gnResult').textContent='';document.getElementById('guidedBtn').textContent='🎯 Lecture Guidée';document.getElementById('guidedListenBtn').style.display='none';
+  document.getElementById('pBPMDisp').textContent=p.bpm;pieceBPM=p.bpm;pieceStep=0;
+  document.getElementById('pieceProgBar').style.width='0%';document.getElementById('pieceTimeE').textContent='0:00';document.getElementById('pieceTimeD').textContent='—';
+}
+function backToLib(){stopPiecePlay();stopGuided();document.getElementById('libListV').style.display='block';document.getElementById('pieceViewer').classList.remove('active');}
+
+// GUIDED
+function toggleGuided(){const p=PIECES.find(x=>x.id===curPieceId);if(!p||!p.notes)return;
+  if(!guidedActive){guidedActive=true;guidedNoteIdx=0;guidedHold=0;document.getElementById('guidedBtn').textContent='⏹ Arrêter';document.getElementById('guidedListenBtn').style.display='inline-flex';showGuidedNote(p);}else stopGuided();}
+function stopGuided(){guidedActive=false;guidedListenActive=false;if(guidedAnimId)cancelAnimationFrame(guidedAnimId);if(guidedStream){guidedStream.getTracks().forEach(t=>t.stop());guidedStream=null;}if(guidedACtx){guidedACtx.close().catch(()=>{});guidedACtx=null;}document.getElementById('guidedBtn').textContent='🎯 Lecture Guidée';document.getElementById('guidedListenBtn').style.display='none';document.getElementById('guidedListenBtn').textContent='🎤 Écouter';}
+function showGuidedNote(p){if(!guidedActive)return;const notes=p.notes||[];if(guidedNoteIdx>=notes.length){document.getElementById('gnNote').textContent='✅';document.getElementById('gnInfo').textContent='Terminé ! Bravo 🎉';document.getElementById('gnResult').textContent='🎉';earnBadge('guided_done');addXP(100);showToast('+100 XP — Lecture guidée terminée !');stopGuided();return;}const cur=notes[guidedNoteIdx];document.getElementById('gnNote').textContent=cur.n||'?';document.getElementById('gnInfo').textContent=`Note ${guidedNoteIdx+1}/${notes.length} — corde ${cur.s}, case ${cur.f}`;document.getElementById('gnResult').textContent='';const ff=cur.f||0,ss=cur.s||1;buildFB(document.getElementById('pvFB'),[{string:ss,fret:ff,finger:cur.finger||1,label:cur.n}],7,0);}
+async function toggleGuidedListen(){if(!guidedListenActive){try{const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false}});guidedStream=stream;guidedACtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:44100});guidedAn=guidedACtx.createAnalyser();guidedAn.fftSize=8192;guidedACtx.createMediaStreamSource(stream).connect(guidedAn);guidedListenActive=true;document.getElementById('guidedListenBtn').textContent='⏹ Stop';guidedListenLoop();}catch(e){showToast('❌ Micro non disponible');}}else{guidedListenActive=false;if(guidedStream){guidedStream.getTracks().forEach(t=>t.stop());guidedStream=null;}if(guidedACtx){guidedACtx.close().catch(()=>{});guidedACtx=null;}document.getElementById('guidedListenBtn').textContent='🎤 Écouter';}}
+function guidedListenLoop(){if(!guidedListenActive||!guidedActive)return;const p=PIECES.find(x=>x.id===curPieceId);if(!p||!p.notes)return;const notes=p.notes||[];if(guidedNoteIdx>=notes.length)return;const buf=new Float32Array(guidedAn.fftSize);guidedAn.getFloatTimeDomainData(buf);const freq=yinP(buf,guidedACtx.sampleRate);if(freq>55&&freq<1200){const det=noteFromFreq(freq);const target=notes[guidedNoteIdx].n;if(det===target){guidedHold++;if(guidedHold>5){document.getElementById('gnResult').textContent='✅';playClick(true);guidedHold=0;guidedNoteIdx++;setTimeout(()=>showGuidedNote(p),400);}}else guidedHold=0;}guidedAnimId=requestAnimationFrame(guidedListenLoop);}
+
+// PLAYER
+function togglePiecePlay(){const p=PIECES.find(x=>x.id===curPieceId);if(!piecePlayActive){piecePlayActive=true;document.getElementById('piecePlayBtn').textContent='⏸';pieceStep=0;const totalSteps=48,iv=60000/pieceBPM;let elapsed=0;pieceInt=setInterval(()=>{elapsed+=iv;pieceStep++;const pct=Math.min(pieceStep/totalSteps*100,100);document.getElementById('pieceProgBar').style.width=pct+'%';const s=Math.floor(elapsed/1000);document.getElementById('pieceTimeE').textContent=`${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;const tot=Math.round(totalSteps*iv/1000);document.getElementById('pieceTimeD').textContent=`${Math.floor(tot/60)}:${(tot%60).toString().padStart(2,'0')}`;const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=pieceStep%4===1?500:350;o.type='sine';g.gain.setValueAtTime(0.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+.04);o.start();o.stop(ctx.currentTime+.05);if(pieceStep>=totalSteps)stopPiecePlay();},iv);}else stopPiecePlay();}
+function stopPiecePlay(){piecePlayActive=false;clearInterval(pieceInt);document.getElementById('piecePlayBtn').textContent='▶';}
+function seekPiece(e){const r=e.currentTarget.getBoundingClientRect();document.getElementById('pieceProgBar').style.width=((e.clientX-r.left)/r.width*100)+'%';}
+function chPBPM(d){pieceBPM=Math.max(30,Math.min(240,pieceBPM+d));document.getElementById('pBPMDisp').textContent=pieceBPM;if(piecePlayActive){stopPiecePlay();togglePiecePlay();}}
+
+// ══════════════════════════════════════════════════
+// PROFIL
+// ══════════════════════════════════════════════════
+function renderProfile(){
+  const lvl=getLevel(S.xp),next=LEVELS.find(l=>l.min>S.xp)||lvl,pct=Math.min(100,(S.xp-lvl.min)/(lvl.max-lvl.min)*100);
+  document.getElementById('profLvlNum').textContent=lvl.num;document.getElementById('profLvlName').textContent=lvl.name;document.getElementById('profLvlSub').textContent=lvl.sub;
+  document.getElementById('profXPLbl').textContent=S.xp+' XP';document.getElementById('profXPNext').textContent=`${next.max} XP → Niveau ${lvl.num+1}`;document.getElementById('profXPBar').style.width=pct+'%';
+  document.getElementById('psDays').textContent=S.practiceDays||0;document.getElementById('psStreak').textContent=S.streak||0;document.getElementById('psLess').textContent=S.completedLessons.length;document.getElementById('psBest').textContent=S.bestScore?S.bestScore+'%':'—';
+  const el=document.getElementById('allBadges');el.innerHTML='';BADGES.forEach(b=>{const earned=S.earnedBadges.includes(b.id);const d=document.createElement('div');d.style.cssText='text-align:center;padding:10px 6px;background:rgba(201,146,58,.06);border-radius:10px;border:1px solid rgba(201,146,58,'+(earned?'.3':'.1')+')';d.innerHTML=`<div style="font-size:1.5rem;${earned?'':'opacity:.3;filter:grayscale(1)'}">${b.icon}</div><div style="font-size:.62rem;color:${earned?'var(--gold3)':'rgba(245,234,212,.35)'};margin-top:3px;line-height:1.2">${b.name}</div>`;el.appendChild(d);});
+}
+
+// ══════════════════════════════════════════════════
+// PWA
+// ══════════════════════════════════════════════════
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;});
+function installPWA(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(r=>{if(r.outcome==='accepted')showToast('✅ App installée !');deferredPrompt=null;});}else showToast('💡 Chrome : Menu ⋮ → Ajouter à l\'écran d\'accueil');}
+function resetAll(){if(confirm('Réinitialiser toute la progression ?')){localStorage.removeItem('gcState2');S={...DEF};location.reload();}}
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+updateHome();
+</script>
+</body>
+</html>
