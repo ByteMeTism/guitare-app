@@ -1,6 +1,7 @@
 {
   "name": "Guitare Classique",
   "short_name": "Guitare",
+  "description": "Application d'apprentissage de la guitare classique",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0a0600",
